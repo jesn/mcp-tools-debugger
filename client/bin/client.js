@@ -44,7 +44,7 @@ const port = parseInt(process.env.CLIENT_PORT || "6274", 10);
 const host = process.env.HOST || "localhost";
 server.on("listening", () => {
   const url = process.env.INSPECTOR_URL || `http://${host}:${port}`;
-  console.log(`\n🚀 MCP Inspector is up and running at:\n   ${url}\n`);
+  console.log(`\n🚀 MCP Tools Debugger is up and running at:\n   ${url}\n`);
   if (process.env.MCP_AUTO_OPEN_ENABLED !== "false") {
     console.log(`🌐 Opening browser...`);
     open(url);
@@ -53,7 +53,7 @@ server.on("listening", () => {
 server.on("error", (err) => {
   if (err.message.includes(`EADDRINUSE`)) {
     console.error(
-      `❌  MCP Inspector PORT IS IN USE at http://${host}:${port} ❌ `,
+      `❌  MCP Tools Debugger PORT IS IN USE at http://${host}:${port} ❌ `,
     );
   } else {
     throw err;

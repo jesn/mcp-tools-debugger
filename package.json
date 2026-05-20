@@ -3,6 +3,19 @@
   "version": "0.1.0",
   "description": "Standalone debugger for MCP server tools — connect, inspect, and call",
   "license": "MIT",
+  "homepage": "https://cnb.cool/rich/public/mcp-tools-debugger",
+  "repository": {
+    "type": "git",
+    "url": "https://cnb.cool/rich/public/mcp-tools-debugger.git"
+  },
+  "bugs": "https://cnb.cool/rich/public/mcp-tools-debugger/issues",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "tools",
+    "debugger",
+    "inspector"
+  ],
   "type": "module",
   "bin": {
     "mcp-tools-debugger": "client/bin/start.js"

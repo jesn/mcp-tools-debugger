@@ -798,7 +798,7 @@ export function useConnection({
         console.error(
           connectionType === "direct"
             ? `Failed to connect directly to MCP Server at: ${serverUrl}:`
-            : `Failed to connect to MCP Server via the MCP Inspector Proxy: ${serverUrl}:`,
+            : `Failed to connect to MCP Server via the proxy: ${serverUrl}:`,
           error,
         );
 

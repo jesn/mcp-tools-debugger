@@ -122,7 +122,7 @@ const Sidebar = ({
   const { toast } = useToast();
 
   const connectionTypeTip =
-    "Connect to server directly (requires CORS config on server) or via MCP Inspector Proxy";
+    "Connect to server directly (requires CORS config on server) or via the proxy";
   // Reusable error reporter for copy actions
   const reportError = useCallback(
     (error: unknown) => {
@@ -241,7 +241,7 @@ const Sidebar = ({
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-border">
         <div className="flex items-center">
           <h1 className="ml-2 text-lg font-semibold">
-            MCP Inspector v{version}
+            MCP Tools Debugger v{version}
           </h1>
         </div>
       </div>
@@ -776,7 +776,7 @@ const Sidebar = ({
                       return "Connection Error - Check if your MCP server is running and proxy token is correct";
                     }
                     case "error-connecting-to-proxy":
-                      return "Error Connecting to MCP Inspector Proxy - Check Console logs";
+                      return "Error Connecting to Proxy - Check Console logs";
                     default:
                       return "Disconnected";
                   }
@@ -924,7 +924,7 @@ const Sidebar = ({
               asChild
             >
               <a
-                href="https://github.com/modelcontextprotocol/inspector"
+                href="https://cnb.cool/rich/public/mcp-tools-debugger"
                 target="_blank"
                 rel="noopener noreferrer"
               >

@@ -165,8 +165,8 @@ export class InspectorOAuthClientProvider implements OAuthClientProvider {
       token_endpoint_auth_method: "none",
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
-      client_name: "MCP Inspector",
-      client_uri: "https://github.com/modelcontextprotocol/inspector",
+      client_name: "MCP Tools Debugger",
+      client_uri: "https://cnb.cool/rich/public/mcp-tools-debugger",
     };
 
     // Only include scope if it's defined and non-empty
