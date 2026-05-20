@@ -139,6 +139,18 @@ const App = () => {
     localStorage.setItem("lastConnectionType", connectionType);
   }, [connectionType]);
   useEffect(() => {
+    localStorage.setItem("lastTransportType", transportType);
+  }, [transportType]);
+  useEffect(() => {
+    localStorage.setItem("lastCommand", command);
+  }, [command]);
+  useEffect(() => {
+    localStorage.setItem("lastArgs", args);
+  }, [args]);
+  useEffect(() => {
+    localStorage.setItem("lastSseUrl", sseUrl);
+  }, [sseUrl]);
+  useEffect(() => {
     localStorage.setItem("lastOauthClientId", oauthClientId);
   }, [oauthClientId]);
   useEffect(() => {
