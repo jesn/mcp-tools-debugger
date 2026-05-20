@@ -111,7 +111,7 @@ const ListPane = <T extends object>({
             Clear
           </Button>
         )}
-        <div className="space-y-2 overflow-y-auto max-h-96">
+        <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-260px)] min-h-[120px]">
           {filteredItems.map((item, index) => (
             <div
               key={index}

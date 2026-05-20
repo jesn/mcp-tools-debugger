@@ -30,7 +30,8 @@ import { useConnection } from "./lib/hooks/useConnection";
 import { useDraggableSidebar } from "./lib/hooks/useDraggablePane";
 
 import { Button } from "@/components/ui/button";
-import { Key } from "lucide-react";
+import { Tabs } from "@/components/ui/tabs";
+import { Key, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { z } from "zod";
 import "./App.css";
 
@@ -99,6 +100,12 @@ const App = () => {
   });
 
   const [isAuthDebuggerVisible, setIsAuthDebuggerVisible] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(
+    () => localStorage.getItem("sidebarCollapsed") === "true",
+  );
+  useEffect(() => {
+    localStorage.setItem("sidebarCollapsed", String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
   const [authState, setAuthState] = useState<AuthDebuggerState>(
     EMPTY_DEBUGGER_STATE,
   );
@@ -403,64 +410,88 @@ const App = () => {
   // ---- Main UI ----
   return (
     <div className="flex h-screen bg-background">
-      <div
-        style={{
-          width: sidebarWidth,
-          minWidth: 200,
-          maxWidth: 600,
-          transition: isSidebarDragging ? "none" : "width 0.15s",
-        }}
-        className="bg-card border-r border-border flex flex-col h-full relative"
-      >
-        <Sidebar
-          connectionStatus={connectionStatus}
-          transportType={transportType}
-          setTransportType={setTransportType}
-          command={command}
-          setCommand={setCommand}
-          args={args}
-          setArgs={setArgs}
-          sseUrl={sseUrl}
-          setSseUrl={setSseUrl}
-          env={env}
-          setEnv={setEnv}
-          config={config}
-          setConfig={setConfig}
-          customHeaders={customHeaders}
-          setCustomHeaders={setCustomHeaders}
-          oauthClientId={oauthClientId}
-          setOauthClientId={setOauthClientId}
-          oauthClientSecret={oauthClientSecret}
-          setOauthClientSecret={setOauthClientSecret}
-          oauthScope={oauthScope}
-          setOauthScope={setOauthScope}
-          onConnect={connectMcpServer}
-          onDisconnect={disconnectMcpServer}
-          logLevel={logLevel}
-          sendLogLevelRequest={sendLogLevelRequest}
-          loggingSupported={!!serverCapabilities?.logging || false}
-          connectionType={connectionType}
-          setConnectionType={setConnectionType}
-          serverImplementation={serverImplementation}
-        />
+      {!sidebarCollapsed && (
         <div
-          onMouseDown={handleSidebarDragStart}
           style={{
-            cursor: "col-resize",
-            position: "absolute",
-            top: 0,
-            right: 0,
-            width: 6,
-            height: "100%",
-            zIndex: 10,
-            background: isSidebarDragging ? "rgba(0,0,0,0.08)" : "transparent",
+            width: sidebarWidth,
+            minWidth: 200,
+            maxWidth: 600,
+            transition: isSidebarDragging ? "none" : "width 0.15s",
           }}
-          aria-label="Resize sidebar"
-          data-testid="sidebar-drag-handle"
-        />
-      </div>
+          className="bg-card border-r border-border flex flex-col h-full relative"
+        >
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(true)}
+            aria-label="Collapse sidebar"
+            className="absolute top-3 right-3 z-20 p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+            title="Collapse sidebar"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+          <Sidebar
+            connectionStatus={connectionStatus}
+            transportType={transportType}
+            setTransportType={setTransportType}
+            command={command}
+            setCommand={setCommand}
+            args={args}
+            setArgs={setArgs}
+            sseUrl={sseUrl}
+            setSseUrl={setSseUrl}
+            env={env}
+            setEnv={setEnv}
+            config={config}
+            setConfig={setConfig}
+            customHeaders={customHeaders}
+            setCustomHeaders={setCustomHeaders}
+            oauthClientId={oauthClientId}
+            setOauthClientId={setOauthClientId}
+            oauthClientSecret={oauthClientSecret}
+            setOauthClientSecret={setOauthClientSecret}
+            oauthScope={oauthScope}
+            setOauthScope={setOauthScope}
+            onConnect={connectMcpServer}
+            onDisconnect={disconnectMcpServer}
+            logLevel={logLevel}
+            sendLogLevelRequest={sendLogLevelRequest}
+            loggingSupported={!!serverCapabilities?.logging || false}
+            connectionType={connectionType}
+            setConnectionType={setConnectionType}
+            serverImplementation={serverImplementation}
+          />
+          <div
+            onMouseDown={handleSidebarDragStart}
+            style={{
+              cursor: "col-resize",
+              position: "absolute",
+              top: 0,
+              right: 0,
+              width: 6,
+              height: "100%",
+              zIndex: 10,
+              background: isSidebarDragging
+                ? "rgba(0,0,0,0.08)"
+                : "transparent",
+            }}
+            aria-label="Resize sidebar"
+            data-testid="sidebar-drag-handle"
+          />
+        </div>
+      )}
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        {sidebarCollapsed && (
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(false)}
+            aria-label="Expand sidebar"
+            className="absolute top-3 left-3 z-20 p-1.5 rounded-md bg-card border border-border shadow-sm hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+            title="Expand sidebar"
+          >
+            <PanelLeftOpen className="w-4 h-4" />
+          </button>
+        )}
         <div className="flex-1 overflow-auto p-4">
           {isAuthDebuggerVisible ? (
             <AuthDebugger
@@ -473,35 +504,37 @@ const App = () => {
             />
           ) : mcpClient ? (
             serverCapabilities?.tools ? (
-              <ToolsTab
-                serverSupportsTaskRequests={false}
-                tools={tools}
-                listTools={() => {
-                  setToolError(null);
-                  void listTools();
-                }}
-                clearTools={() => {
-                  setTools([]);
-                  setNextToolCursor(undefined);
-                  cacheToolOutputSchemas([]);
-                }}
-                callTool={async (name, params, metadata) => {
-                  setToolError(null);
-                  setToolResult(null);
-                  return await callTool(name, params, metadata);
-                }}
-                selectedTool={selectedTool}
-                setSelectedTool={(tool) => {
-                  setToolError(null);
-                  setSelectedTool(tool);
-                  setToolResult(null);
-                }}
-                toolResult={toolResult}
-                isPollingTask={false}
-                nextCursor={nextToolCursor}
-                error={toolError}
-                resourceContent={{}}
-              />
+              <Tabs value="tools" className="w-full">
+                <ToolsTab
+                  serverSupportsTaskRequests={false}
+                  tools={tools}
+                  listTools={() => {
+                    setToolError(null);
+                    void listTools();
+                  }}
+                  clearTools={() => {
+                    setTools([]);
+                    setNextToolCursor(undefined);
+                    cacheToolOutputSchemas([]);
+                  }}
+                  callTool={async (name, params, metadata) => {
+                    setToolError(null);
+                    setToolResult(null);
+                    return await callTool(name, params, metadata);
+                  }}
+                  selectedTool={selectedTool}
+                  setSelectedTool={(tool) => {
+                    setToolError(null);
+                    setSelectedTool(tool);
+                    setToolResult(null);
+                  }}
+                  toolResult={toolResult}
+                  isPollingTask={false}
+                  nextCursor={nextToolCursor}
+                  error={toolError}
+                  resourceContent={{}}
+                />
+              </Tabs>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
                 <p className="text-lg">
