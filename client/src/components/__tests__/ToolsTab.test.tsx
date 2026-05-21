@@ -74,6 +74,12 @@ describe("ToolsTab", () => {
     resourceContent: {},
     onReadResource: jest.fn(),
     serverSupportsTaskRequests: true,
+    paramTemplates: [],
+    onCreateTemplate: jest.fn(),
+    onApplyTemplate: jest.fn(),
+    onDeleteTemplate: jest.fn(),
+    onUpdateTemplate: jest.fn(),
+    onUseTemplate: jest.fn(),
   };
 
   const renderToolsTab = (props = {}) => {

@@ -44,6 +44,8 @@ import { useToast } from "@/lib/hooks/useToast";
 import useCopy from "@/lib/hooks/useCopy";
 import IconDisplay, { WithIcons } from "./IconDisplay";
 import { cn } from "@/lib/utils";
+import ParamTemplateManager from "./ParamTemplateManager";
+import type { ParamTemplate } from "@/lib/types/paramTemplate";
 import {
   META_NAME_RULES_MESSAGE,
   META_PREFIX_RULES_MESSAGE,
@@ -178,6 +180,12 @@ const ToolsTab = ({
   resourceContent,
   onReadResource,
   serverSupportsTaskRequests,
+  paramTemplates,
+  onCreateTemplate,
+  onApplyTemplate,
+  onDeleteTemplate,
+  onUpdateTemplate,
+  onUseTemplate,
 }: {
   tools: Tool[];
   listTools: () => void;
@@ -197,6 +205,19 @@ const ToolsTab = ({
   resourceContent: Record<string, string>;
   onReadResource?: (uri: string) => void;
   serverSupportsTaskRequests: boolean;
+  paramTemplates: ParamTemplate[];
+  onCreateTemplate: (
+    name: string,
+    params: Record<string, JsonValue>,
+    description?: string,
+  ) => void;
+  onApplyTemplate: (params: Record<string, JsonValue>) => void;
+  onDeleteTemplate: (id: string) => void;
+  onUpdateTemplate: (
+    id: string,
+    updates: { name?: string; description?: string },
+  ) => void;
+  onUseTemplate?: (id: string) => void;
 }) => {
   const [params, setParams] = useState<Record<string, unknown>>({});
   const [runAsTask, setRunAsTask] = useState(false);
@@ -856,6 +877,21 @@ const ToolsTab = ({
                   )}
                 </Button>
                 <div className="flex gap-2">
+                  <ParamTemplateManager
+                    toolName={selectedTool.name}
+                    currentParams={params as Record<string, JsonValue>}
+                    templates={paramTemplates}
+                    onCreateTemplate={(name, description) => {
+                      onCreateTemplate(name, params as Record<string, JsonValue>, description);
+                    }}
+                    onApplyTemplate={(template) => {
+                      setParams(template.params as Record<string, unknown>);
+                      onApplyTemplate(template.params);
+                    }}
+                    onDeleteTemplate={onDeleteTemplate}
+                    onUpdateTemplate={onUpdateTemplate}
+                    onUseTemplate={onUseTemplate}
+                  />
                   <Button
                     onClick={async () => {
                       try {

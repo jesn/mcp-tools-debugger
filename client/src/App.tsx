@@ -30,6 +30,7 @@ import { useConnection } from "./lib/hooks/useConnection";
 import { useDraggableSidebar } from "./lib/hooks/useDraggablePane";
 import { useProfiles } from "./lib/hooks/useProfiles";
 import { useToolHistory } from "./lib/hooks/useToolHistory";
+import { useParamTemplates } from "./lib/hooks/useParamTemplates";
 
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
@@ -76,6 +77,9 @@ const App = () => {
 
   // ---- Tool History ----
   const toolHistory = useToolHistory();
+
+  // ---- Param Templates ----
+  const paramTemplates = useParamTemplates();
 
   // ---- Tools state ----
   const [tools, setTools] = useState<Tool[]>([]);
@@ -514,6 +518,28 @@ const App = () => {
                     nextCursor={nextToolCursor}
                     error={toolError}
                     resourceContent={{}}
+                    paramTemplates={
+                      selectedTool
+                        ? paramTemplates.getTemplatesForTool(selectedTool.name)
+                        : []
+                    }
+                    onCreateTemplate={(name, params, description) => {
+                      if (selectedTool) {
+                        paramTemplates.createTemplate(
+                          name,
+                          selectedTool.name,
+                          params,
+                          description,
+                        );
+                      }
+                    }}
+                    onApplyTemplate={() => {
+                      // 应用模板时，参数已经在 ToolsTab 中通过 setParams 设置
+                      // 这里不需要额外操作
+                    }}
+                    onDeleteTemplate={paramTemplates.deleteTemplate}
+                    onUpdateTemplate={paramTemplates.updateTemplate}
+                    onUseTemplate={paramTemplates.useTemplate}
                   />
                 </LocalErrorBoundary>
               </Tabs>
