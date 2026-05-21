@@ -47,7 +47,9 @@ import { validateRedirectUrl } from "@/utils/urlValidation";
 import type {
   ConnectionProfile,
   ConnectionProfilePatch,
+  ProfilesState,
 } from "@/lib/profiles/types";
+import ProfileSwitcher from "./ProfileSwitcher";
 
 interface SidebarProps {
   connectionStatus: ConnectionStatus;
@@ -55,6 +57,13 @@ interface SidebarProps {
   profile: ConnectionProfile;
   /** 部分更新当前 Profile（包含字段持久化） */
   updateProfile: (patch: ConnectionProfilePatch) => void;
+  /** ProfileSwitcher 所需的完整 API */
+  profilesState: ProfilesState;
+  setActiveProfile: (id: string) => void;
+  createProfile: (name?: string) => string;
+  renameProfile: (id: string, name: string) => void;
+  deleteProfile: (id: string) => void;
+  cloneActiveProfile: () => void;
   onConnect: () => void;
   onDisconnect: () => void;
   logLevel: LoggingLevel;
@@ -71,6 +80,12 @@ const Sidebar = ({
   connectionStatus,
   profile,
   updateProfile,
+  profilesState,
+  setActiveProfile,
+  createProfile,
+  renameProfile,
+  deleteProfile,
+  cloneActiveProfile,
   onConnect,
   onDisconnect,
   logLevel,
@@ -244,6 +259,18 @@ const Sidebar = ({
             MCP Tools Debugger v{version}
           </h1>
         </div>
+      </div>
+
+      <div className="p-4 border-b border-gray-200 dark:border-border">
+        <ProfileSwitcher
+          state={profilesState}
+          activeProfile={profile}
+          setActiveProfile={setActiveProfile}
+          createProfile={createProfile}
+          renameProfile={renameProfile}
+          deleteProfile={deleteProfile}
+          cloneActiveProfile={cloneActiveProfile}
+        />
       </div>
 
       <div className="p-4 flex-1 overflow-auto">

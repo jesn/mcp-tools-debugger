@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import type {
   ConnectionProfile,
   ConnectionProfilePatch,
+  ProfilesState,
 } from "@/lib/profiles/types";
 
 // Mock theme hook
@@ -116,11 +117,23 @@ describe("Sidebar", () => {
       }
     };
 
+    // Mock ProfileSwitcher 所需的 API
+    const mockProfilesState: ProfilesState = {
+      activeId: profile.id,
+      profiles: { [profile.id]: profile },
+    };
+
     return (
       <TooltipProvider>
         <Sidebar
           profile={profile}
           updateProfile={updateProfile}
+          profilesState={mockProfilesState}
+          setActiveProfile={jest.fn()}
+          createProfile={jest.fn()}
+          renameProfile={jest.fn()}
+          deleteProfile={jest.fn()}
+          cloneActiveProfile={jest.fn()}
           connectionStatus={merged.connectionStatus}
           onConnect={merged.onConnect}
           onDisconnect={merged.onDisconnect}

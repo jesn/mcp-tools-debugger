@@ -46,7 +46,9 @@ const CONFIG_LOCAL_STORAGE_KEY = "inspectorConfig_v1";
 
 const App = () => {
   // ---- Connection profile（聚合实体，取代原本散落的 14 个 useState）----
-  const { activeProfile, updateActiveProfile } = useProfiles();
+  const profilesApi = useProfiles();
+  const { activeProfile, updateActiveProfile } = profilesApi;
+  const prevActiveIdRef = useRef(activeProfile.id);
 
   // ---- 仍属"全局/会话级"的状态，不进入 Profile ----
   const [logLevel, setLogLevel] = useState<LoggingLevel>("debug");
@@ -324,6 +326,16 @@ const App = () => {
     setLogLevel(level);
   };
 
+  // ---- 切换 Profile 时自动断开连接 ----
+  useEffect(() => {
+    if (prevActiveIdRef.current !== activeProfile.id) {
+      prevActiveIdRef.current = activeProfile.id;
+      if (connectionStatus === "connected") {
+        void disconnectMcpServer();
+      }
+    }
+  }, [activeProfile.id, connectionStatus, disconnectMcpServer]);
+
   // ---- OAuth callback routing ----
   if (window.location.pathname === "/oauth/callback") {
     const OAuthCallback = React.lazy(
@@ -372,6 +384,12 @@ const App = () => {
           <Sidebar
             profile={activeProfile}
             updateProfile={updateActiveProfile}
+            profilesState={profilesApi.state}
+            setActiveProfile={profilesApi.setActiveProfile}
+            createProfile={profilesApi.createProfile}
+            renameProfile={profilesApi.renameProfile}
+            deleteProfile={profilesApi.deleteProfile}
+            cloneActiveProfile={profilesApi.cloneActiveProfile}
             connectionStatus={connectionStatus}
             onConnect={connectMcpServer}
             onDisconnect={disconnectMcpServer}

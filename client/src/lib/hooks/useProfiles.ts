@@ -30,6 +30,8 @@ export interface UseProfilesResult {
   renameProfile: (id: string, name: string) => void;
   /** 删除指定 Profile；删除当前激活时自动切到剩余的第一个；最后一个不允许删 */
   deleteProfile: (id: string) => void;
+  /** 克隆当前 Profile：复制所有可编辑字段到新 Profile 并激活 */
+  cloneActiveProfile: () => void;
 }
 
 const withPersist = (next: ProfilesState): ProfilesState => {
@@ -107,6 +109,29 @@ export const useProfiles = (): UseProfilesResult => {
     });
   }, []);
 
+  const cloneActiveProfile = useCallback(() => {
+    setState((prev) => {
+      const current = prev.profiles[prev.activeId];
+      if (!current) return prev;
+      const cloned = createDefaultProfile(`${current.name} 副本`);
+      const clonedWithData: ConnectionProfile = {
+        ...cloned,
+        transportType: current.transportType,
+        connectionType: current.connectionType,
+        command: current.command,
+        args: current.args,
+        sseUrl: current.sseUrl,
+        env: current.env,
+        oauth: { ...current.oauth },
+        customHeaders: current.customHeaders.map((h) => ({ ...h })),
+      };
+      return withPersist({
+        activeId: clonedWithData.id,
+        profiles: { ...prev.profiles, [clonedWithData.id]: clonedWithData },
+      });
+    });
+  }, []);
+
   return {
     state,
     activeProfile,
@@ -115,5 +140,6 @@ export const useProfiles = (): UseProfilesResult => {
     createProfile,
     renameProfile,
     deleteProfile,
+    cloneActiveProfile,
   };
 };
