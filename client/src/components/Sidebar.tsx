@@ -44,28 +44,17 @@ import { CustomHeaders as CustomHeadersType } from "@/lib/types/customHeaders";
 import { useToast } from "../lib/hooks/useToast";
 import IconDisplay, { WithIcons } from "./IconDisplay";
 import { validateRedirectUrl } from "@/utils/urlValidation";
+import type {
+  ConnectionProfile,
+  ConnectionProfilePatch,
+} from "@/lib/profiles/types";
 
 interface SidebarProps {
   connectionStatus: ConnectionStatus;
-  transportType: "stdio" | "sse" | "streamable-http";
-  setTransportType: (type: "stdio" | "sse" | "streamable-http") => void;
-  command: string;
-  setCommand: (command: string) => void;
-  args: string;
-  setArgs: (args: string) => void;
-  sseUrl: string;
-  setSseUrl: (url: string) => void;
-  env: Record<string, string>;
-  setEnv: (env: Record<string, string>) => void;
-  // Custom headers support
-  customHeaders: CustomHeadersType;
-  setCustomHeaders: (headers: CustomHeadersType) => void;
-  oauthClientId: string;
-  setOauthClientId: (id: string) => void;
-  oauthClientSecret: string;
-  setOauthClientSecret: (secret: string) => void;
-  oauthScope: string;
-  setOauthScope: (scope: string) => void;
+  /** 当前激活的连接配置实体 */
+  profile: ConnectionProfile;
+  /** 部分更新当前 Profile（包含字段持久化） */
+  updateProfile: (patch: ConnectionProfilePatch) => void;
   onConnect: () => void;
   onDisconnect: () => void;
   logLevel: LoggingLevel;
@@ -73,8 +62,6 @@ interface SidebarProps {
   loggingSupported: boolean;
   config: InspectorConfig;
   setConfig: (config: InspectorConfig) => void;
-  connectionType: "direct" | "proxy";
-  setConnectionType: (type: "direct" | "proxy") => void;
   serverImplementation?:
     | (WithIcons & { name?: string; version?: string; websiteUrl?: string })
     | null;
@@ -82,24 +69,8 @@ interface SidebarProps {
 
 const Sidebar = ({
   connectionStatus,
-  transportType,
-  setTransportType,
-  command,
-  setCommand,
-  args,
-  setArgs,
-  sseUrl,
-  setSseUrl,
-  env,
-  setEnv,
-  customHeaders,
-  setCustomHeaders,
-  oauthClientId,
-  setOauthClientId,
-  oauthClientSecret,
-  setOauthClientSecret,
-  oauthScope,
-  setOauthScope,
+  profile,
+  updateProfile,
   onConnect,
   onDisconnect,
   logLevel,
@@ -107,10 +78,39 @@ const Sidebar = ({
   loggingSupported,
   config,
   setConfig,
-  connectionType,
-  setConnectionType,
   serverImplementation,
 }: SidebarProps) => {
+  // 从 profile 中解构出局部别名，业务代码（300+ 行）保持原貌不变，
+  // 各处 setXxx 转发到 updateProfile，保持单一持久化入口。
+  const {
+    transportType,
+    connectionType,
+    command,
+    args,
+    sseUrl,
+    env,
+    oauth,
+    customHeaders,
+  } = profile;
+  const { clientId: oauthClientId, clientSecret: oauthClientSecret, scope: oauthScope } = oauth;
+
+  const setTransportType = (type: "stdio" | "sse" | "streamable-http") =>
+    updateProfile({ transportType: type });
+  const setConnectionType = (type: "direct" | "proxy") =>
+    updateProfile({ connectionType: type });
+  const setCommand = (v: string) => updateProfile({ command: v });
+  const setArgs = (v: string) => updateProfile({ args: v });
+  const setSseUrl = (v: string) => updateProfile({ sseUrl: v });
+  const setEnv = (v: Record<string, string>) => updateProfile({ env: v });
+  const setCustomHeaders = (v: CustomHeadersType) =>
+    updateProfile({ customHeaders: v });
+  const setOauthClientId = (v: string) =>
+    updateProfile({ oauth: { ...oauth, clientId: v } });
+  const setOauthClientSecret = (v: string) =>
+    updateProfile({ oauth: { ...oauth, clientSecret: v } });
+  const setOauthScope = (v: string) =>
+    updateProfile({ oauth: { ...oauth, scope: v } });
+
   const [theme, setTheme] = useTheme();
   const [showEnvVars, setShowEnvVars] = useState(false);
   const [showAuthConfig, setShowAuthConfig] = useState(false);

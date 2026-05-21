@@ -28,6 +28,7 @@ import React, {
 } from "react";
 import { useConnection } from "./lib/hooks/useConnection";
 import { useDraggableSidebar } from "./lib/hooks/useDraggablePane";
+import { useProfiles } from "./lib/hooks/useProfiles";
 
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
@@ -39,65 +40,19 @@ import AuthDebugger from "./components/AuthDebugger";
 import Sidebar from "./components/Sidebar";
 import ToolsTab from "./components/ToolsTab";
 import { InspectorConfig } from "./lib/configurationTypes";
-import {
-  getInitialSseUrl,
-  getInitialTransportType,
-  getInitialCommand,
-  getInitialArgs,
-  initializeInspectorConfig,
-} from "./utils/configUtils";
-import {
-  CustomHeaders,
-  migrateFromLegacyAuth,
-} from "./lib/types/customHeaders";
+import { initializeInspectorConfig } from "./utils/configUtils";
 
 const CONFIG_LOCAL_STORAGE_KEY = "inspectorConfig_v1";
 
 const App = () => {
-  // ---- Connection params ----
-  const [command, setCommand] = useState<string>(getInitialCommand);
-  const [args, setArgs] = useState<string>(getInitialArgs);
-  const [sseUrl, setSseUrl] = useState<string>(getInitialSseUrl);
-  const [transportType, setTransportType] = useState<
-    "stdio" | "sse" | "streamable-http"
-  >(getInitialTransportType);
-  const [connectionType, setConnectionType] = useState<"direct" | "proxy">(
-    () =>
-      (localStorage.getItem("lastConnectionType") as "direct" | "proxy") ||
-      "proxy",
-  );
+  // ---- Connection profile（聚合实体，取代原本散落的 14 个 useState）----
+  const { activeProfile, updateActiveProfile } = useProfiles();
+
+  // ---- 仍属"全局/会话级"的状态，不进入 Profile ----
   const [logLevel, setLogLevel] = useState<LoggingLevel>("debug");
-  const [env, setEnv] = useState<Record<string, string>>({});
   const [config, setConfig] = useState<InspectorConfig>(() =>
     initializeInspectorConfig(CONFIG_LOCAL_STORAGE_KEY),
   );
-
-  // ---- OAuth state ----
-  const [oauthClientId, setOauthClientId] = useState<string>(
-    () => localStorage.getItem("lastOauthClientId") || "",
-  );
-  const [oauthScope, setOauthScope] = useState<string>(
-    () => localStorage.getItem("lastOauthScope") || "",
-  );
-  const [oauthClientSecret, setOauthClientSecret] = useState<string>(
-    () => localStorage.getItem("lastOauthClientSecret") || "",
-  );
-  const [customHeaders, setCustomHeaders] = useState<CustomHeaders>(() => {
-    const savedHeaders = localStorage.getItem("lastCustomHeaders");
-    if (savedHeaders) {
-      try {
-        return JSON.parse(savedHeaders);
-      } catch (error) {
-        console.warn("Failed to parse custom headers", error);
-      }
-    }
-    const legacyToken = localStorage.getItem("lastBearerToken") || "";
-    const legacyHeaderName = localStorage.getItem("lastHeaderName") || "";
-    if (legacyToken) {
-      return migrateFromLegacyAuth(legacyToken, legacyHeaderName);
-    }
-    return [{ name: "Authorization", value: "Bearer ", enabled: false }];
-  });
 
   const [isAuthDebuggerVisible, setIsAuthDebuggerVisible] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(
@@ -134,36 +89,7 @@ const App = () => {
     handleDragStart: handleSidebarDragStart,
   } = useDraggableSidebar(320);
 
-  // Persist connection prefs
-  useEffect(() => {
-    localStorage.setItem("lastConnectionType", connectionType);
-  }, [connectionType]);
-  useEffect(() => {
-    localStorage.setItem("lastTransportType", transportType);
-  }, [transportType]);
-  useEffect(() => {
-    localStorage.setItem("lastCommand", command);
-  }, [command]);
-  useEffect(() => {
-    localStorage.setItem("lastArgs", args);
-  }, [args]);
-  useEffect(() => {
-    localStorage.setItem("lastSseUrl", sseUrl);
-  }, [sseUrl]);
-  useEffect(() => {
-    localStorage.setItem("lastOauthClientId", oauthClientId);
-  }, [oauthClientId]);
-  useEffect(() => {
-    localStorage.setItem("lastOauthScope", oauthScope);
-  }, [oauthScope]);
-  useEffect(() => {
-    localStorage.setItem("lastOauthClientSecret", oauthClientSecret);
-  }, [oauthClientSecret]);
-  useEffect(() => {
-    localStorage.setItem("lastCustomHeaders", JSON.stringify(customHeaders));
-  }, [customHeaders]);
-
-  // ---- MCP Connection (no cross-tab side-effects) ----
+  // ---- MCP Connection ----
   const {
     connectionStatus,
     serverCapabilities,
@@ -173,19 +99,18 @@ const App = () => {
     disconnect: disconnectMcpServer,
     makeRequest,
   } = useConnection({
-    transportType,
-    command,
-    args,
-    sseUrl,
-    env,
-    customHeaders,
-    oauthClientId,
-    oauthClientSecret,
-    oauthScope,
+    transportType: activeProfile.transportType,
+    command: activeProfile.command,
+    args: activeProfile.args,
+    sseUrl: activeProfile.sseUrl,
+    env: activeProfile.env,
+    customHeaders: activeProfile.customHeaders,
+    oauthClientId: activeProfile.oauth.clientId,
+    oauthClientSecret: activeProfile.oauth.clientSecret,
+    oauthScope: activeProfile.oauth.scope,
     config,
-    connectionType,
+    connectionType: activeProfile.connectionType,
     onNotification: (notification) => {
-      // Pure notification storage — no tab switching or other side effects
       setNotifications((prev) => [...prev, notification as ServerNotification]);
     },
     defaultLoggingLevel: logLevel,
@@ -278,11 +203,11 @@ const App = () => {
   // ---- OAuth handlers ----
   const onOAuthConnect = useCallback(
     (serverUrl: string) => {
-      setSseUrl(serverUrl);
+      updateActiveProfile({ sseUrl: serverUrl });
       setIsAuthDebuggerVisible(false);
       void connectMcpServer();
     },
-    [connectMcpServer],
+    [connectMcpServer, updateActiveProfile],
   );
 
   const onOAuthDebugConnect = useCallback(
@@ -314,11 +239,11 @@ const App = () => {
 
         try {
           const fetchFn =
-            connectionType === "proxy" && config
+            activeProfile.connectionType === "proxy" && config
               ? createProxyFetch(config)
               : undefined;
           const stateMachine = new OAuthStateMachine(
-            sseUrl,
+            activeProfile.sseUrl,
             (updates) => {
               currentState = { ...currentState, ...updates };
             },
@@ -361,15 +286,18 @@ const App = () => {
         });
       }
     },
-    [sseUrl, connectionType, config, updateAuthState],
+    [activeProfile.sseUrl, activeProfile.connectionType, config, updateAuthState],
   );
 
   // Restore OAuth tokens
   useEffect(() => {
     const loadOAuthTokens = async () => {
       try {
-        if (sseUrl) {
-          const key = getServerSpecificKey(SESSION_KEYS.TOKENS, sseUrl);
+        if (activeProfile.sseUrl) {
+          const key = getServerSpecificKey(
+            SESSION_KEYS.TOKENS,
+            activeProfile.sseUrl,
+          );
           const tokens = sessionStorage.getItem(key);
           if (tokens) {
             const parsedTokens = await OAuthTokensSchema.parseAsync(
@@ -386,7 +314,7 @@ const App = () => {
       }
     };
     void loadOAuthTokens();
-  }, [sseUrl, updateAuthState]);
+  }, [activeProfile.sseUrl, updateAuthState]);
 
   const sendLogLevelRequest = async (level: LoggingLevel) => {
     await sendMCPRequest(
@@ -442,34 +370,16 @@ const App = () => {
             <PanelLeftClose className="w-4 h-4" />
           </button>
           <Sidebar
+            profile={activeProfile}
+            updateProfile={updateActiveProfile}
             connectionStatus={connectionStatus}
-            transportType={transportType}
-            setTransportType={setTransportType}
-            command={command}
-            setCommand={setCommand}
-            args={args}
-            setArgs={setArgs}
-            sseUrl={sseUrl}
-            setSseUrl={setSseUrl}
-            env={env}
-            setEnv={setEnv}
-            config={config}
-            setConfig={setConfig}
-            customHeaders={customHeaders}
-            setCustomHeaders={setCustomHeaders}
-            oauthClientId={oauthClientId}
-            setOauthClientId={setOauthClientId}
-            oauthClientSecret={oauthClientSecret}
-            setOauthClientSecret={setOauthClientSecret}
-            oauthScope={oauthScope}
-            setOauthScope={setOauthScope}
             onConnect={connectMcpServer}
             onDisconnect={disconnectMcpServer}
             logLevel={logLevel}
             sendLogLevelRequest={sendLogLevelRequest}
             loggingSupported={!!serverCapabilities?.logging || false}
-            connectionType={connectionType}
-            setConnectionType={setConnectionType}
+            config={config}
+            setConfig={setConfig}
             serverImplementation={serverImplementation}
           />
           <div
@@ -507,12 +417,12 @@ const App = () => {
         <div className="flex-1 overflow-auto p-4">
           {isAuthDebuggerVisible ? (
             <AuthDebugger
-              serverUrl={sseUrl}
+              serverUrl={activeProfile.sseUrl}
               onBack={() => setIsAuthDebuggerVisible(false)}
               authState={authState}
               updateAuthState={updateAuthState}
               config={config}
-              connectionType={connectionType}
+              connectionType={activeProfile.connectionType}
             />
           ) : mcpClient ? (
             serverCapabilities?.tools ? (

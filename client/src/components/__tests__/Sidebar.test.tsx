@@ -5,6 +5,10 @@ import Sidebar from "../Sidebar";
 import { DEFAULT_INSPECTOR_CONFIG } from "@/lib/constants";
 import { InspectorConfig } from "@/lib/configurationTypes";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type {
+  ConnectionProfile,
+  ConnectionProfilePatch,
+} from "@/lib/profiles/types";
 
 // Mock theme hook
 jest.mock("../../lib/hooks/useTheme", () => ({
@@ -32,6 +36,8 @@ Object.defineProperty(navigator, "clipboard", {
 jest.useFakeTimers();
 
 describe("Sidebar", () => {
+  // defaultProps 保留旧的散字段 setter mock，便于复用既有断言；
+  // 在 renderSidebar 里用适配层把它们转发给新 props（profile / updateProfile）。
   const defaultProps = {
     connectionStatus: "disconnected" as const,
     transportType: "stdio" as const,
@@ -48,9 +54,9 @@ describe("Sidebar", () => {
     setOauthClientSecret: jest.fn(),
     oauthScope: "",
     setOauthScope: jest.fn(),
-    env: {},
+    env: {} as Record<string, string>,
     setEnv: jest.fn(),
-    customHeaders: [],
+    customHeaders: [] as ConnectionProfile["customHeaders"],
     setCustomHeaders: jest.fn(),
     onConnect: jest.fn(),
     onDisconnect: jest.fn(),
@@ -65,12 +71,84 @@ describe("Sidebar", () => {
     setConnectionType: jest.fn(),
   };
 
-  const renderSidebar = (props = {}) => {
-    return render(
+  type SidebarTestProps = Partial<typeof defaultProps> & {
+    serverImplementation?: React.ComponentProps<typeof Sidebar>["serverImplementation"];
+  };
+
+  const buildSidebarElement = (props: SidebarTestProps) => {
+    const merged = { ...defaultProps, ...props };
+    const profile: ConnectionProfile = {
+      id: "test-profile",
+      name: "test",
+      transportType: merged.transportType,
+      connectionType: merged.connectionType,
+      command: merged.command,
+      args: merged.args,
+      sseUrl: merged.sseUrl,
+      env: merged.env,
+      oauth: {
+        clientId: merged.oauthClientId,
+        clientSecret: merged.oauthClientSecret,
+        scope: merged.oauthScope,
+      },
+      customHeaders: merged.customHeaders,
+      createdAt: 0,
+      updatedAt: 0,
+    };
+    const updateProfile = (patch: ConnectionProfilePatch) => {
+      if (patch.transportType !== undefined)
+        merged.setTransportType(patch.transportType);
+      if (patch.connectionType !== undefined)
+        merged.setConnectionType(patch.connectionType);
+      if (patch.command !== undefined) merged.setCommand(patch.command);
+      if (patch.args !== undefined) merged.setArgs(patch.args);
+      if (patch.sseUrl !== undefined) merged.setSseUrl(patch.sseUrl);
+      if (patch.env !== undefined) merged.setEnv(patch.env);
+      if (patch.customHeaders !== undefined)
+        merged.setCustomHeaders(patch.customHeaders);
+      if (patch.oauth !== undefined) {
+        if (patch.oauth.clientId !== merged.oauthClientId)
+          merged.setOauthClientId(patch.oauth.clientId);
+        if (patch.oauth.clientSecret !== merged.oauthClientSecret)
+          merged.setOauthClientSecret(patch.oauth.clientSecret);
+        if (patch.oauth.scope !== merged.oauthScope)
+          merged.setOauthScope(patch.oauth.scope);
+      }
+    };
+
+    return (
       <TooltipProvider>
-        <Sidebar {...defaultProps} {...props} />
-      </TooltipProvider>,
+        <Sidebar
+          profile={profile}
+          updateProfile={updateProfile}
+          connectionStatus={merged.connectionStatus}
+          onConnect={merged.onConnect}
+          onDisconnect={merged.onDisconnect}
+          logLevel={merged.logLevel}
+          sendLogLevelRequest={merged.sendLogLevelRequest}
+          loggingSupported={merged.loggingSupported}
+          config={merged.config}
+          setConfig={merged.setConfig}
+          serverImplementation={props.serverImplementation}
+        />
+      </TooltipProvider>
     );
+  };
+
+  const renderSidebar = (props: SidebarTestProps = {}) => {
+    const utils = render(buildSidebarElement(props));
+    return {
+      ...utils,
+      // 包装 rerender：测试中 rerender(newProps) 走与首次 render 相同的适配层；
+      // 兼容历史调用 rerender(<TooltipProvider>...</TooltipProvider>) 时直接透传。
+      rerender: (next: SidebarTestProps | React.ReactElement) => {
+        if (next && typeof next === "object" && "type" in next) {
+          utils.rerender(next as React.ReactElement);
+        } else {
+          utils.rerender(buildSidebarElement(next as SidebarTestProps));
+        }
+      },
+    };
   };
 
   beforeEach(() => {
@@ -288,11 +366,7 @@ describe("Sidebar", () => {
         const updatedEnv = setEnv.mock.calls[0][0] as Record<string, string>;
 
         // Rerender with the updated env
-        rerender(
-          <TooltipProvider>
-            <Sidebar {...defaultProps} env={updatedEnv} setEnv={setEnv} />
-          </TooltipProvider>,
-        );
+        rerender({ env: updatedEnv, setEnv });
 
         // Second key edit
         const secondKeyInput = screen.getByDisplayValue("SECOND_KEY");
@@ -327,11 +401,7 @@ describe("Sidebar", () => {
         fireEvent.change(keyInput, { target: { value: "NEW_KEY" } });
 
         // Rerender with updated env
-        rerender(
-          <TooltipProvider>
-            <Sidebar {...defaultProps} env={{ NEW_KEY: "test_value" }} />
-          </TooltipProvider>,
-        );
+        rerender({ env: { NEW_KEY: "test_value" } });
 
         // Value should still be visible
         const updatedValueInput = screen.getByDisplayValue("test_value");
@@ -740,21 +810,16 @@ describe("Sidebar", () => {
       fireEvent.change(tokenInput, { target: { value: "Bearer new_token" } });
 
       // Rerender with updated token
-      rerender(
-        <TooltipProvider>
-          <Sidebar
-            {...defaultProps}
-            customHeaders={[
-              {
-                name: "Authorization",
-                value: "Bearer new_token",
-                enabled: true,
-              },
-            ]}
-            transportType="sse"
-          />
-        </TooltipProvider>,
-      );
+      rerender({
+        customHeaders: [
+          {
+            name: "Authorization",
+            value: "Bearer new_token",
+            enabled: true,
+          },
+        ],
+        transportType: "sse",
+      });
 
       // Token input should still exist after update
       expect(screen.getByTestId("header-value-input-0")).toBeInTheDocument();
@@ -782,21 +847,16 @@ describe("Sidebar", () => {
       fireEvent.change(tokenInput, { target: { value: "Bearer new_token" } });
 
       // Rerender with updated token
-      rerender(
-        <TooltipProvider>
-          <Sidebar
-            {...defaultProps}
-            customHeaders={[
-              {
-                name: "Authorization",
-                value: "Bearer new_token",
-                enabled: true,
-              },
-            ]}
-            transportType="sse"
-          />
-        </TooltipProvider>,
-      );
+      rerender({
+        customHeaders: [
+          {
+            name: "Authorization",
+            value: "Bearer new_token",
+            enabled: true,
+          },
+        ],
+        transportType: "sse",
+      });
 
       // Token input should still exist after update
       expect(screen.getByTestId("header-value-input-0")).toBeInTheDocument();
@@ -1016,15 +1076,7 @@ describe("Sidebar", () => {
       const updatedConfig = setConfig.mock.calls[0][0] as InspectorConfig;
 
       // Rerender with the updated config
-      rerender(
-        <TooltipProvider>
-          <Sidebar
-            {...defaultProps}
-            config={updatedConfig}
-            setConfig={setConfig}
-          />
-        </TooltipProvider>,
-      );
+      rerender({ config: updatedConfig, setConfig });
 
       // Second update
       const updatedTimeoutInput = screen.getByTestId(

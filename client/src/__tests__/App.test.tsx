@@ -134,4 +134,23 @@ describe("App", () => {
     renderApp();
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
   });
+
+  it("旧版 last* localStorage 存在时，挂载后自动迁移到 v1 Profile", () => {
+    localStorage.setItem("lastCommand", "python");
+    localStorage.setItem("lastArgs", "-m srv");
+    localStorage.setItem("lastSseUrl", "https://legacy.example.com/sse");
+
+    renderApp();
+
+    const raw = localStorage.getItem("mcpDebuggerProfiles_v1");
+    expect(raw).toBeTruthy();
+    const state = JSON.parse(raw as string);
+    const profile = state.profiles[state.activeId];
+    expect(profile.command).toBe("python");
+    expect(profile.args).toBe("-m srv");
+    expect(profile.sseUrl).toBe("https://legacy.example.com/sse");
+    expect(localStorage.getItem("mcpDebuggerProfiles_v1_migrated")).toBe(
+      "true",
+    );
+  });
 });
