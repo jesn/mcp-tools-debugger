@@ -41,7 +41,7 @@ jest.mock("../lib/hooks/useDraggablePane", () => ({
 
 // 屏蔽 toast，避免 Sidebar 等子组件触发副作用。
 jest.mock("@/lib/hooks/useToast", () => ({
-  useToast: () => ({ toast: jest.fn() }),
+  useToast: () => ({ toast: jest.fn(), toasts: [], dismiss: jest.fn() }),
 }));
 
 // SDK auth 模块依赖 pkce-challenge（仅 ESM，jest 环境无法解析），整体打桩。

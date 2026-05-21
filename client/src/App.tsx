@@ -31,6 +31,7 @@ import { useDraggableSidebar } from "./lib/hooks/useDraggablePane";
 import { useProfiles } from "./lib/hooks/useProfiles";
 import { useToolHistory } from "./lib/hooks/useToolHistory";
 import { useParamTemplates } from "./lib/hooks/useParamTemplates";
+import { useToast } from "./lib/hooks/useToast";
 
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
@@ -43,6 +44,7 @@ import Sidebar from "./components/Sidebar";
 import ToolsTab from "./components/ToolsTab";
 import ToolHistorySidebar from "./components/ToolHistorySidebar";
 import { LocalErrorBoundary } from "./components/LocalErrorBoundary";
+import { Toaster } from "./components/ui/toaster";
 import { InspectorConfig } from "./lib/configurationTypes";
 import { initializeInspectorConfig } from "./utils/configUtils";
 
@@ -79,6 +81,9 @@ const App = () => {
 
   // ---- Param Templates ----
   const paramTemplates = useParamTemplates();
+
+  // ---- Toast ----
+  const { toast } = useToast();
 
   // ---- Tools state ----
   const [tools, setTools] = useState<Tool[]>([]);
@@ -130,6 +135,30 @@ const App = () => {
     },
     defaultLoggingLevel: logLevel,
   });
+
+  // 保存连接状态到 localStorage
+  useEffect(() => {
+    const key = `mcp-connection-status-${activeProfile.id}`;
+    if (connectionStatus === "connected") {
+      localStorage.setItem(key, "true");
+    } else if (connectionStatus === "disconnected") {
+      localStorage.removeItem(key);
+    }
+  }, [connectionStatus, activeProfile.id]);
+
+  // 页面加载时自动重连
+  useEffect(() => {
+    const key = `mcp-connection-status-${activeProfile.id}`;
+    const wasConnected = localStorage.getItem(key) === "true";
+
+    if (wasConnected && connectionStatus === "disconnected") {
+      // 延迟一小段时间，确保组件完全初始化
+      const timer = setTimeout(() => {
+        connectMcpServer();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeProfile.id]); // 仅在 profile 切换时触发
 
   const sendMCPRequest = async <T extends AnySchema>(
     request: ClientRequest,
@@ -499,6 +528,11 @@ const App = () => {
                         // 清空之前的结果
                         setToolResult(null);
                         setToolError(null);
+                        // 显示 toast 提示
+                        toast({
+                          title: "参数已填充",
+                          description: `已回放 ${entry.toolName} 的调用参数`,
+                        });
                       }
                     }}
                   />
@@ -592,6 +626,7 @@ const App = () => {
           )}
         </div>
       </div>
+      <Toaster />
     </div>
   );
 };

@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   History,
@@ -63,29 +64,26 @@ export default function ToolHistorySidebar({
   onReplay,
 }: ToolHistorySidebarProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [confirmClear, setConfirmClear] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
 
-  const handleDelete = (id: string) => {
-    if (confirmDelete === id) {
-      onDeleteEntry(id);
-      setConfirmDelete(null);
-    } else {
-      setConfirmDelete(id);
-      // 3秒后自动取消确认状态
-      setTimeout(() => setConfirmDelete(null), 3000);
-    }
+  const handleDeleteClick = (id: string) => {
+    setEntryToDelete(id);
+    setDeleteDialogOpen(true);
   };
 
-  const handleClear = () => {
-    if (confirmClear) {
-      onClearHistory();
-      setConfirmClear(false);
-    } else {
-      setConfirmClear(true);
-      // 3秒后自动取消确认状态
-      setTimeout(() => setConfirmClear(false), 3000);
+  const handleDeleteConfirm = () => {
+    if (entryToDelete) {
+      onDeleteEntry(entryToDelete);
+      setEntryToDelete(null);
     }
+    setDeleteDialogOpen(false);
+  };
+
+  const handleClearConfirm = () => {
+    onClearHistory();
+    setClearDialogOpen(false);
   };
 
   return (
@@ -115,13 +113,13 @@ export default function ToolHistorySidebar({
             导出 JSON
           </Button>
           <Button
-            variant={confirmClear ? "destructive" : "outline"}
+            variant="outline"
             size="sm"
-            onClick={handleClear}
+            onClick={() => setClearDialogOpen(true)}
             disabled={entries.length === 0}
           >
             <Trash2 className="w-4 h-4 mr-2" />
-            {confirmClear ? "确认清空？" : "清空历史"}
+            清空历史
           </Button>
         </div>
 
@@ -168,22 +166,12 @@ export default function ToolHistorySidebar({
                         <RotateCcw className="w-4 h-4" />
                       </Button>
                       <Button
-                        variant={
-                          confirmDelete === entry.id ? "destructive" : "ghost"
-                        }
+                        variant="ghost"
                         size="sm"
-                        onClick={() => handleDelete(entry.id)}
-                        title={
-                          confirmDelete === entry.id
-                            ? "确认删除？"
-                            : "删除此记录"
-                        }
+                        onClick={() => handleDeleteClick(entry.id)}
+                        title="删除此记录"
                       >
-                        {confirmDelete === entry.id ? (
-                          "确认？"
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
@@ -232,6 +220,49 @@ export default function ToolHistorySidebar({
           )}
         </div>
       </DialogContent>
+
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除</DialogTitle>
+            <DialogDescription>
+              确定要删除这条调用记录吗？此操作无法撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm}>
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 清空确认对话框 */}
+      <Dialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认清空</DialogTitle>
+            <DialogDescription>
+              确定要清空所有调用历史吗？此操作无法撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClearDialogOpen(false)}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleClearConfirm}>
+              清空
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
