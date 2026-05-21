@@ -1,4 +1,4 @@
-# Build stage - install dependencies and build
+# Build stage
 FROM node:22-slim AS builder
 
 WORKDIR /app
@@ -14,8 +14,7 @@ COPY . .
 RUN npm run build
 
 # Prune devDependencies
-RUN npm prune --workspace=client --workspace=server --omit=dev && \
-    npm prune --omit=dev
+RUN npm prune --omit=dev
 
 # Runtime stage
 FROM node:22-slim
@@ -25,11 +24,9 @@ WORKDIR /app
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/client/package.json ./client/
-COPY --from=builder /app/client/node_modules ./client/node_modules
 COPY --from=builder /app/client/bin ./client/bin
 COPY --from=builder /app/client/dist ./client/dist
 COPY --from=builder /app/server/package.json ./server/
-COPY --from=builder /app/server/node_modules ./server/node_modules
 COPY --from=builder /app/server/build ./server/build
 COPY --from=builder /app/server/static ./server/static
 
