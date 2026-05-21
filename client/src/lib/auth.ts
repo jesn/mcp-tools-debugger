@@ -42,8 +42,8 @@ export const discoverScopes = async (
     return scopesSupported && scopesSupported.length > 0
       ? scopesSupported.join(" ")
       : undefined;
-  } catch (error) {
-    console.debug("OAuth scope discovery failed:", error);
+  } catch {
+    // 资源元数据是可选的；scope 发现失败时静默回退到 undefined。
     return undefined;
   }
 };

@@ -4,12 +4,15 @@ import { Toaster } from "@/components/ui/toaster.tsx";
 import App from "./App.tsx";
 import "./index.css";
 import { TooltipProvider } from "./components/ui/tooltip.tsx";
+import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <TooltipProvider>
-      <App />
-    </TooltipProvider>
-    <Toaster />
+    <ErrorBoundary>
+      <TooltipProvider>
+        <App />
+      </TooltipProvider>
+      <Toaster />
+    </ErrorBoundary>
   </StrictMode>,
 );
