@@ -30,7 +30,11 @@ export class LocalErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error(`[LocalErrorBoundary:${this.props.area}]`, error, info.componentStack);
+    console.error(
+      `[LocalErrorBoundary:${this.props.area}]`,
+      error,
+      info.componentStack,
+    );
   }
 
   reset = () => this.setState({ error: null });
@@ -52,7 +56,8 @@ export class LocalErrorBoundary extends Component<Props, State> {
         </div>
 
         <p className="text-sm text-muted-foreground text-center max-w-md">
-          {customMessage || `${area}渲染时出现异常。请尝试重置后继续，若反复出现请检查浏览器控制台。`}
+          {customMessage ||
+            `${area}渲染时出现异常。请尝试重置后继续，若反复出现请检查浏览器控制台。`}
         </p>
 
         <details className="w-full max-w-md">
@@ -76,9 +81,12 @@ export class LocalErrorBoundary extends Component<Props, State> {
 
   private getRecoverySuggestion(area: string): ReactNode {
     const suggestions: Record<string, string> = {
-      "工具调用": "提示：如果工具返回的数据格式异常，可以尝试断开连接后重新连接服务器。",
-      "配置面板": "提示：如果配置数据损坏，可以尝试切换到其他 Profile 或新建一个 Profile。",
-      "Profile 管理": "提示：如果 Profile 数据异常，可以尝试清除浏览器 localStorage 后刷新页面。",
+      工具调用:
+        "提示：如果工具返回的数据格式异常，可以尝试断开连接后重新连接服务器。",
+      配置面板:
+        "提示：如果配置数据损坏，可以尝试切换到其他 Profile 或新建一个 Profile。",
+      "Profile 管理":
+        "提示：如果 Profile 数据异常，可以尝试清除浏览器 localStorage 后刷新页面。",
     };
 
     const suggestion = suggestions[area];

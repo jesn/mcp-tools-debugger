@@ -75,9 +75,7 @@ describe("LocalErrorBoundary", () => {
       </LocalErrorBoundary>,
     );
 
-    expect(
-      screen.getByText(/工具调用渲染时出现异常/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/工具调用渲染时出现异常/)).toBeInTheDocument();
 
     console.error = consoleError;
   });
@@ -133,9 +131,7 @@ describe("LocalErrorBoundary", () => {
       </LocalErrorBoundary>,
     );
 
-    expect(
-      screen.getByText(/如果工具返回的数据格式异常/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/如果工具返回的数据格式异常/)).toBeInTheDocument();
 
     console.error = consoleError;
   });
@@ -150,9 +146,7 @@ describe("LocalErrorBoundary", () => {
       </LocalErrorBoundary>,
     );
 
-    expect(
-      screen.getByText(/如果配置数据损坏/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/如果配置数据损坏/)).toBeInTheDocument();
 
     console.error = consoleError;
   });
@@ -167,9 +161,7 @@ describe("LocalErrorBoundary", () => {
       </LocalErrorBoundary>,
     );
 
-    expect(
-      screen.getByText(/如果 Profile 数据异常/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/如果 Profile 数据异常/)).toBeInTheDocument();
 
     console.error = consoleError;
   });

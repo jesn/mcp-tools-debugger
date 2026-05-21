@@ -63,6 +63,30 @@ export default function ToolHistorySidebar({
   onReplay,
 }: ToolHistorySidebarProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  const handleDelete = (id: string) => {
+    if (confirmDelete === id) {
+      onDeleteEntry(id);
+      setConfirmDelete(null);
+    } else {
+      setConfirmDelete(id);
+      // 3秒后自动取消确认状态
+      setTimeout(() => setConfirmDelete(null), 3000);
+    }
+  };
+
+  const handleClear = () => {
+    if (confirmClear) {
+      onClearHistory();
+      setConfirmClear(false);
+    } else {
+      setConfirmClear(true);
+      // 3秒后自动取消确认状态
+      setTimeout(() => setConfirmClear(false), 3000);
+    }
+  };
 
   return (
     <Dialog>
@@ -91,13 +115,13 @@ export default function ToolHistorySidebar({
             导出 JSON
           </Button>
           <Button
-            variant="outline"
+            variant={confirmClear ? "destructive" : "outline"}
             size="sm"
-            onClick={onClearHistory}
+            onClick={handleClear}
             disabled={entries.length === 0}
           >
             <Trash2 className="w-4 h-4 mr-2" />
-            清空历史
+            {confirmClear ? "确认清空？" : "清空历史"}
           </Button>
         </div>
 
@@ -144,12 +168,22 @@ export default function ToolHistorySidebar({
                         <RotateCcw className="w-4 h-4" />
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant={
+                          confirmDelete === entry.id ? "destructive" : "ghost"
+                        }
                         size="sm"
-                        onClick={() => onDeleteEntry(entry.id)}
-                        title="删除此记录"
+                        onClick={() => handleDelete(entry.id)}
+                        title={
+                          confirmDelete === entry.id
+                            ? "确认删除？"
+                            : "删除此记录"
+                        }
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {confirmDelete === entry.id ? (
+                          "确认？"
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
                       </Button>
                     </div>
                   </div>

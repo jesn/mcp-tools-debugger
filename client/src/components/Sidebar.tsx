@@ -107,7 +107,11 @@ const Sidebar = ({
     oauth,
     customHeaders,
   } = profile;
-  const { clientId: oauthClientId, clientSecret: oauthClientSecret, scope: oauthScope } = oauth;
+  const {
+    clientId: oauthClientId,
+    clientSecret: oauthClientSecret,
+    scope: oauthScope,
+  } = oauth;
 
   const setTransportType = (type: "stdio" | "sse" | "streamable-http") =>
     updateProfile({ transportType: type });

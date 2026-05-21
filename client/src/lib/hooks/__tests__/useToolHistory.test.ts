@@ -1,9 +1,14 @@
 import { renderHook, act } from "@testing-library/react";
-import { describe, it, expect } from "@jest/globals";
+import { describe, it, expect, beforeEach } from "@jest/globals";
 import { useToolHistory } from "../useToolHistory";
 import type { CompatibilityCallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 describe("useToolHistory", () => {
+  beforeEach(() => {
+    // 清理 localStorage
+    localStorage.clear();
+  });
+
   it("初始状态为空", () => {
     const { result } = renderHook(() => useToolHistory());
     expect(result.current.entries).toEqual([]);

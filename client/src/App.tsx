@@ -67,9 +67,8 @@ const App = () => {
   useEffect(() => {
     localStorage.setItem("sidebarCollapsed", String(sidebarCollapsed));
   }, [sidebarCollapsed]);
-  const [authState, setAuthState] = useState<AuthDebuggerState>(
-    EMPTY_DEBUGGER_STATE,
-  );
+  const [authState, setAuthState] =
+    useState<AuthDebuggerState>(EMPTY_DEBUGGER_STATE);
 
   const updateAuthState = useCallback((updates: Partial<AuthDebuggerState>) => {
     setAuthState((prev) => ({ ...prev, ...updates }));
@@ -88,6 +87,10 @@ const App = () => {
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
   const [nextToolCursor, setNextToolCursor] = useState<string | undefined>();
   const [toolError, setToolError] = useState<string | null>(null);
+  const [replayParams, setReplayParams] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
 
   // Notifications storage (kept for completeness but no UI side-effects)
   const [, setNotifications] = useState<ServerNotification[]>([]);
@@ -192,7 +195,13 @@ const App = () => {
       const duration = Date.now() - startTime;
 
       // 添加到历史记录
-      toolHistory.addEntry(name, cleanedParams, directResult, mergedMetadata, duration);
+      toolHistory.addEntry(
+        name,
+        cleanedParams,
+        directResult,
+        mergedMetadata,
+        duration,
+      );
 
       setToolResult(directResult);
       setToolError(null);
@@ -309,7 +318,12 @@ const App = () => {
         });
       }
     },
-    [activeProfile.sseUrl, activeProfile.connectionType, config, updateAuthState],
+    [
+      activeProfile.sseUrl,
+      activeProfile.connectionType,
+      config,
+      updateAuthState,
+    ],
   );
 
   // Restore OAuth tokens
@@ -481,9 +495,10 @@ const App = () => {
                       const tool = tools.find((t) => t.name === entry.toolName);
                       if (tool) {
                         setSelectedTool(tool);
-                        // 注意：这里无法直接设置 ToolsTab 内部的 params state
-                        // 需要通过 ToolsTab 暴露 setParams 或者使用其他方式
-                        // 暂时只选择 tool，用户需要手动查看历史记录中的参数
+                        setReplayParams(entry.params);
+                        // 清空之前的结果
+                        setToolResult(null);
+                        setToolError(null);
                       }
                     }}
                   />
@@ -491,58 +506,61 @@ const App = () => {
                 <Tabs value="tools" className="w-full">
                   <LocalErrorBoundary area="工具调用">
                     <ToolsTab
-                    serverSupportsTaskRequests={false}
-                    tools={tools}
-                    listTools={() => {
-                      setToolError(null);
-                      void listTools();
-                    }}
-                    clearTools={() => {
-                      setTools([]);
-                      setNextToolCursor(undefined);
-                      cacheToolOutputSchemas([]);
-                    }}
-                    callTool={async (name, params, metadata) => {
-                      setToolError(null);
-                      setToolResult(null);
-                      return await callTool(name, params, metadata);
-                    }}
-                    selectedTool={selectedTool}
-                    setSelectedTool={(tool) => {
-                      setToolError(null);
-                      setSelectedTool(tool);
-                      setToolResult(null);
-                    }}
-                    toolResult={toolResult}
-                    isPollingTask={false}
-                    nextCursor={nextToolCursor}
-                    error={toolError}
-                    resourceContent={{}}
-                    paramTemplates={
-                      selectedTool
-                        ? paramTemplates.getTemplatesForTool(selectedTool.name)
-                        : []
-                    }
-                    onCreateTemplate={(name, params, description) => {
-                      if (selectedTool) {
-                        paramTemplates.createTemplate(
-                          name,
-                          selectedTool.name,
-                          params,
-                          description,
-                        );
+                      serverSupportsTaskRequests={false}
+                      tools={tools}
+                      listTools={() => {
+                        setToolError(null);
+                        void listTools();
+                      }}
+                      clearTools={() => {
+                        setTools([]);
+                        setNextToolCursor(undefined);
+                        cacheToolOutputSchemas([]);
+                      }}
+                      callTool={async (name, params, metadata) => {
+                        setToolError(null);
+                        setToolResult(null);
+                        return await callTool(name, params, metadata);
+                      }}
+                      selectedTool={selectedTool}
+                      setSelectedTool={(tool) => {
+                        setToolError(null);
+                        setSelectedTool(tool);
+                        setToolResult(null);
+                      }}
+                      toolResult={toolResult}
+                      isPollingTask={false}
+                      nextCursor={nextToolCursor}
+                      error={toolError}
+                      resourceContent={{}}
+                      paramTemplates={
+                        selectedTool
+                          ? paramTemplates.getTemplatesForTool(
+                              selectedTool.name,
+                            )
+                          : []
                       }
-                    }}
-                    onApplyTemplate={() => {
-                      // 应用模板时，参数已经在 ToolsTab 中通过 setParams 设置
-                      // 这里不需要额外操作
-                    }}
-                    onDeleteTemplate={paramTemplates.deleteTemplate}
-                    onUpdateTemplate={paramTemplates.updateTemplate}
-                    onUseTemplate={paramTemplates.useTemplate}
-                  />
-                </LocalErrorBoundary>
-              </Tabs>
+                      onCreateTemplate={(name, params, description) => {
+                        if (selectedTool) {
+                          paramTemplates.createTemplate(
+                            name,
+                            selectedTool.name,
+                            params,
+                            description,
+                          );
+                        }
+                      }}
+                      onApplyTemplate={() => {
+                        // 应用模板时，参数已经在 ToolsTab 中通过 setParams 设置
+                        // 这里不需要额外操作
+                      }}
+                      onDeleteTemplate={paramTemplates.deleteTemplate}
+                      onUpdateTemplate={paramTemplates.updateTemplate}
+                      onUseTemplate={paramTemplates.useTemplate}
+                      replayParams={replayParams}
+                    />
+                  </LocalErrorBoundary>
+                </Tabs>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">

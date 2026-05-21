@@ -186,6 +186,7 @@ const ToolsTab = ({
   onDeleteTemplate,
   onUpdateTemplate,
   onUseTemplate,
+  replayParams,
 }: {
   tools: Tool[];
   listTools: () => void;
@@ -218,6 +219,7 @@ const ToolsTab = ({
     updates: { name?: string; description?: string },
   ) => void;
   onUseTemplate?: (id: string) => void;
+  replayParams?: Record<string, unknown> | null;
 }) => {
   const [params, setParams] = useState<Record<string, unknown>>({});
   const [runAsTask, setRunAsTask] = useState(false);
@@ -273,6 +275,13 @@ const ToolsTab = ({
     // Clear form refs for the previous tool
     formRefs.current = {};
   }, [selectedTool, serverSupportsTaskRequests]);
+
+  // 处理回放参数
+  useEffect(() => {
+    if (replayParams && selectedTool) {
+      setParams(replayParams);
+    }
+  }, [replayParams, selectedTool]);
 
   const hasReservedMetadataEntry = metadataEntries.some(({ key }) => {
     const trimmedKey = key.trim();
@@ -882,7 +891,11 @@ const ToolsTab = ({
                     currentParams={params as Record<string, JsonValue>}
                     templates={paramTemplates}
                     onCreateTemplate={(name, description) => {
-                      onCreateTemplate(name, params as Record<string, JsonValue>, description);
+                      onCreateTemplate(
+                        name,
+                        params as Record<string, JsonValue>,
+                        description,
+                      );
                     }}
                     onApplyTemplate={(template) => {
                       setParams(template.params as Record<string, unknown>);

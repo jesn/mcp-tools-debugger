@@ -71,7 +71,9 @@ export const createDefaultProfile = (
     sseUrl: "http://localhost:3001/sse",
     env: {},
     oauth: { clientId: "", clientSecret: "", scope: "" },
-    customHeaders: [{ name: "Authorization", value: "Bearer ", enabled: false }],
+    customHeaders: [
+      { name: "Authorization", value: "Bearer ", enabled: false },
+    ],
     createdAt: ts,
     updatedAt: ts,
   };

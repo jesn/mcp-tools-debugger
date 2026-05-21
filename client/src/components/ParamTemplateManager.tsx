@@ -27,10 +27,7 @@ interface ParamTemplateManagerProps {
   toolName: string;
   currentParams: Record<string, JsonValue>;
   templates: ParamTemplate[];
-  onCreateTemplate: (
-    name: string,
-    description?: string,
-  ) => void;
+  onCreateTemplate: (name: string, description?: string) => void;
   onApplyTemplate: (template: ParamTemplate) => void;
   onDeleteTemplate: (id: string) => void;
   onUpdateTemplate: (
@@ -68,7 +65,10 @@ export default function ParamTemplateManager({
 
   const handleCreate = () => {
     if (!newTemplateName.trim()) return;
-    onCreateTemplate(newTemplateName.trim(), newTemplateDesc.trim() || undefined);
+    onCreateTemplate(
+      newTemplateName.trim(),
+      newTemplateDesc.trim() || undefined,
+    );
     setNewTemplateName("");
     setNewTemplateDesc("");
     setIsCreateMode(false);

@@ -73,7 +73,9 @@ describe("Sidebar", () => {
   };
 
   type SidebarTestProps = Partial<typeof defaultProps> & {
-    serverImplementation?: React.ComponentProps<typeof Sidebar>["serverImplementation"];
+    serverImplementation?: React.ComponentProps<
+      typeof Sidebar
+    >["serverImplementation"];
   };
 
   const buildSidebarElement = (props: SidebarTestProps) => {

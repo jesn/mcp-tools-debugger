@@ -99,8 +99,13 @@ describe("ToolHistorySidebar", () => {
     fireEvent.click(trigger);
 
     const clearBtn = screen.getByText("清空历史");
+    // 第一次点击进入确认状态
     fireEvent.click(clearBtn);
+    expect(onClearHistory).not.toHaveBeenCalled();
 
+    // 第二次点击确认清空
+    const confirmBtn = screen.getByText("确认清空？");
+    fireEvent.click(confirmBtn);
     expect(onClearHistory).toHaveBeenCalled();
   });
 
@@ -145,8 +150,13 @@ describe("ToolHistorySidebar", () => {
     fireEvent.click(trigger);
 
     const deleteButtons = screen.getAllByTitle("删除此记录");
+    // 第一次点击进入确认状态
     fireEvent.click(deleteButtons[0]);
+    expect(onDeleteEntry).not.toHaveBeenCalled();
 
+    // 第二次点击确认删除
+    const confirmButton = screen.getByTitle("确认删除？");
+    fireEvent.click(confirmButton);
     expect(onDeleteEntry).toHaveBeenCalledWith(entry.id);
   });
 

@@ -2,9 +2,7 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { describe, it, expect, beforeEach, jest } from "@jest/globals";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import ProfileSwitcher, {
-  type ProfileSwitcherProps,
-} from "../ProfileSwitcher";
+import ProfileSwitcher, { type ProfileSwitcherProps } from "../ProfileSwitcher";
 import { createDefaultProfile } from "@/lib/profiles/storage";
 import type { ProfilesState } from "@/lib/profiles/types";
 
@@ -57,7 +55,9 @@ beforeEach(() => {
 describe("ProfileSwitcher", () => {
   it("渲染触发按钮，显示当前 Profile 名称与传输类型", () => {
     renderProfileSwitcher();
-    expect(screen.getByRole("combobox", { name: /切换连接配置/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: /切换连接配置/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText("默认")).toBeInTheDocument();
     expect(screen.getByText(/stdio/i)).toBeInTheDocument();
   });
@@ -152,7 +152,9 @@ describe("ProfileSwitcher", () => {
     // Escape 会返回列表模式，Popover 仍然打开
     // 但如果 Radix Popover 默认行为关闭了整个 Popover，则搜索框不存在
     // 这里我们验证至少回到了初始状态（Popover 关闭）
-    expect(screen.queryByPlaceholderText("例如：生产环境")).not.toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText("例如：生产环境"),
+    ).not.toBeInTheDocument();
   });
 
   it("点击「克隆当前」调用 cloneActiveProfile 并关闭", () => {

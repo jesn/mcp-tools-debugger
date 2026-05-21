@@ -1,20 +1,48 @@
-import { useState, useCallback } from "react";
-import type {
-  ToolHistoryEntry,
-  ToolHistoryState,
-} from "../types/toolHistory";
+import { useState, useCallback, useEffect } from "react";
+import type { ToolHistoryEntry, ToolHistoryState } from "../types/toolHistory";
 import type { CompatibilityCallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 const MAX_HISTORY_ENTRIES = 100;
+const STORAGE_KEY = "mcp-inspector-tool-history";
+
+/**
+ * 从 localStorage 加载历史记录
+ */
+const loadHistory = (): ToolHistoryEntry[] => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return [];
+    return JSON.parse(stored);
+  } catch (error) {
+    console.error("Failed to load tool history:", error);
+    return [];
+  }
+};
+
+/**
+ * 保存历史记录到 localStorage
+ */
+const saveHistory = (entries: ToolHistoryEntry[]) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  } catch (error) {
+    console.error("Failed to save tool history:", error);
+  }
+};
 
 /**
  * Tool 调用历史管理 Hook
  */
 export const useToolHistory = () => {
-  const [state, setState] = useState<ToolHistoryState>({
-    entries: [],
+  const [state, setState] = useState<ToolHistoryState>(() => ({
+    entries: loadHistory(),
     maxEntries: MAX_HISTORY_ENTRIES,
-  });
+  }));
+
+  // 自动保存到 localStorage
+  useEffect(() => {
+    saveHistory(state.entries);
+  }, [state.entries]);
 
   /**
    * 添加历史记录

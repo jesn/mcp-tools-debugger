@@ -7,7 +7,14 @@
 // - 不直接处理"切换时断开旧连接"的副作用 —— 那是 App.tsx 监听 activeProfile.id 变化时的事。
 
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronsUpDown, Plus, Copy, Pencil, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronsUpDown,
+  Plus,
+  Copy,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -160,7 +167,10 @@ const ProfileSwitcher = ({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)] min-w-[260px]" align="start">
+      <PopoverContent
+        className="p-0 w-[var(--radix-popover-trigger-width)] min-w-[260px]"
+        align="start"
+      >
         {mode === "list" && (
           <Command>
             <CommandInput placeholder="搜索 Profile..." />
@@ -190,15 +200,24 @@ const ProfileSwitcher = ({
               </CommandGroup>
               <CommandSeparator />
               <CommandGroup>
-                <CommandItem onSelect={handleStartCreate} value="__action_new__">
+                <CommandItem
+                  onSelect={handleStartCreate}
+                  value="__action_new__"
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   新建 Profile
                 </CommandItem>
-                <CommandItem onSelect={cloneActiveProfile} value="__action_clone__">
+                <CommandItem
+                  onSelect={cloneActiveProfile}
+                  value="__action_clone__"
+                >
                   <Copy className="mr-2 h-4 w-4" />
                   克隆当前
                 </CommandItem>
-                <CommandItem onSelect={handleStartRename} value="__action_rename__">
+                <CommandItem
+                  onSelect={handleStartRename}
+                  value="__action_rename__"
+                >
                   <Pencil className="mr-2 h-4 w-4" />
                   重命名当前
                 </CommandItem>
@@ -243,7 +262,12 @@ const ProfileSwitcher = ({
               placeholder={mode === "create" ? "例如：生产环境" : ""}
             />
             <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="outline" size="sm" onClick={resetToList}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={resetToList}
+              >
                 取消
               </Button>
               <Button type="submit" size="sm" disabled={!draftName.trim()}>

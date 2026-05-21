@@ -31,7 +31,9 @@ describe("useProfiles", () => {
 
     expect(result.current.activeProfile.command).toBe("node");
     expect(result.current.activeProfile.args).toBe("x");
-    expect(result.current.activeProfile.sseUrl).toBe("http://localhost:3001/sse"); // 未触及字段保留
+    expect(result.current.activeProfile.sseUrl).toBe(
+      "http://localhost:3001/sse",
+    ); // 未触及字段保留
 
     const raw = JSON.parse(
       localStorage.getItem(PROFILES_STORAGE_KEY) as string,
