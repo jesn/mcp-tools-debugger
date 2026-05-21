@@ -29,6 +29,7 @@ import React, {
 import { useConnection } from "./lib/hooks/useConnection";
 import { useDraggableSidebar } from "./lib/hooks/useDraggablePane";
 import { useProfiles } from "./lib/hooks/useProfiles";
+import { useToolHistory } from "./lib/hooks/useToolHistory";
 
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
@@ -39,6 +40,7 @@ import "./App.css";
 import AuthDebugger from "./components/AuthDebugger";
 import Sidebar from "./components/Sidebar";
 import ToolsTab from "./components/ToolsTab";
+import ToolHistorySidebar from "./components/ToolHistorySidebar";
 import { LocalErrorBoundary } from "./components/LocalErrorBoundary";
 import { InspectorConfig } from "./lib/configurationTypes";
 import { initializeInspectorConfig } from "./utils/configUtils";
@@ -71,6 +73,9 @@ const App = () => {
   const updateAuthState = useCallback((updates: Partial<AuthDebuggerState>) => {
     setAuthState((prev) => ({ ...prev, ...updates }));
   }, []);
+
+  // ---- Tool History ----
+  const toolHistory = useToolHistory();
 
   // ---- Tools state ----
   const [tools, setTools] = useState<Tool[]>([]);
@@ -153,6 +158,7 @@ const App = () => {
     params: Record<string, unknown>,
     toolMetadata?: Record<string, unknown>,
   ): Promise<CompatibilityCallToolResult> => {
+    const startTime = Date.now();
     try {
       const tool = tools.find((t) => t.name === name);
       const cleanedParams = tool?.inputSchema
@@ -179,6 +185,11 @@ const App = () => {
         "tools",
       );
       const directResult = response as CompatibilityCallToolResult;
+      const duration = Date.now() - startTime;
+
+      // 添加到历史记录
+      toolHistory.addEntry(name, cleanedParams, directResult, mergedMetadata, duration);
+
       setToolResult(directResult);
       setToolError(null);
       return directResult;
@@ -189,6 +200,11 @@ const App = () => {
         ],
         isError: true,
       };
+      const duration = Date.now() - startTime;
+
+      // 添加错误结果到历史记录
+      toolHistory.addEntry(name, params, errorResult, toolMetadata, duration);
+
       setToolResult(errorResult);
       setToolError(null);
       return errorResult;
@@ -449,9 +465,28 @@ const App = () => {
             </LocalErrorBoundary>
           ) : mcpClient ? (
             serverCapabilities?.tools ? (
-              <Tabs value="tools" className="w-full">
-                <LocalErrorBoundary area="工具调用">
-                  <ToolsTab
+              <div className="w-full">
+                <div className="flex justify-end mb-4">
+                  <ToolHistorySidebar
+                    entries={toolHistory.entries}
+                    onClearHistory={toolHistory.clearHistory}
+                    onDeleteEntry={toolHistory.deleteEntry}
+                    onExportHistory={toolHistory.exportHistory}
+                    onReplay={(entry) => {
+                      // 回放：选择对应的 tool 并填充参数
+                      const tool = tools.find((t) => t.name === entry.toolName);
+                      if (tool) {
+                        setSelectedTool(tool);
+                        // 注意：这里无法直接设置 ToolsTab 内部的 params state
+                        // 需要通过 ToolsTab 暴露 setParams 或者使用其他方式
+                        // 暂时只选择 tool，用户需要手动查看历史记录中的参数
+                      }
+                    }}
+                  />
+                </div>
+                <Tabs value="tools" className="w-full">
+                  <LocalErrorBoundary area="工具调用">
+                    <ToolsTab
                     serverSupportsTaskRequests={false}
                     tools={tools}
                     listTools={() => {
@@ -482,6 +517,7 @@ const App = () => {
                   />
                 </LocalErrorBoundary>
               </Tabs>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
                 <p className="text-lg">
