@@ -39,6 +39,7 @@ import "./App.css";
 import AuthDebugger from "./components/AuthDebugger";
 import Sidebar from "./components/Sidebar";
 import ToolsTab from "./components/ToolsTab";
+import { LocalErrorBoundary } from "./components/LocalErrorBoundary";
 import { InspectorConfig } from "./lib/configurationTypes";
 import { initializeInspectorConfig } from "./utils/configUtils";
 
@@ -381,25 +382,27 @@ const App = () => {
           >
             <PanelLeftClose className="w-4 h-4" />
           </button>
-          <Sidebar
-            profile={activeProfile}
-            updateProfile={updateActiveProfile}
-            profilesState={profilesApi.state}
-            setActiveProfile={profilesApi.setActiveProfile}
-            createProfile={profilesApi.createProfile}
-            renameProfile={profilesApi.renameProfile}
-            deleteProfile={profilesApi.deleteProfile}
-            cloneActiveProfile={profilesApi.cloneActiveProfile}
-            connectionStatus={connectionStatus}
-            onConnect={connectMcpServer}
-            onDisconnect={disconnectMcpServer}
-            logLevel={logLevel}
-            sendLogLevelRequest={sendLogLevelRequest}
-            loggingSupported={!!serverCapabilities?.logging || false}
-            config={config}
-            setConfig={setConfig}
-            serverImplementation={serverImplementation}
-          />
+          <LocalErrorBoundary area="配置面板">
+            <Sidebar
+              profile={activeProfile}
+              updateProfile={updateActiveProfile}
+              profilesState={profilesApi.state}
+              setActiveProfile={profilesApi.setActiveProfile}
+              createProfile={profilesApi.createProfile}
+              renameProfile={profilesApi.renameProfile}
+              deleteProfile={profilesApi.deleteProfile}
+              cloneActiveProfile={profilesApi.cloneActiveProfile}
+              connectionStatus={connectionStatus}
+              onConnect={connectMcpServer}
+              onDisconnect={disconnectMcpServer}
+              logLevel={logLevel}
+              sendLogLevelRequest={sendLogLevelRequest}
+              loggingSupported={!!serverCapabilities?.logging || false}
+              config={config}
+              setConfig={setConfig}
+              serverImplementation={serverImplementation}
+            />
+          </LocalErrorBoundary>
           <div
             onMouseDown={handleSidebarDragStart}
             style={{
@@ -434,46 +437,50 @@ const App = () => {
         )}
         <div className="flex-1 overflow-auto p-4">
           {isAuthDebuggerVisible ? (
-            <AuthDebugger
-              serverUrl={activeProfile.sseUrl}
-              onBack={() => setIsAuthDebuggerVisible(false)}
-              authState={authState}
-              updateAuthState={updateAuthState}
-              config={config}
-              connectionType={activeProfile.connectionType}
-            />
+            <LocalErrorBoundary area="OAuth 调试">
+              <AuthDebugger
+                serverUrl={activeProfile.sseUrl}
+                onBack={() => setIsAuthDebuggerVisible(false)}
+                authState={authState}
+                updateAuthState={updateAuthState}
+                config={config}
+                connectionType={activeProfile.connectionType}
+              />
+            </LocalErrorBoundary>
           ) : mcpClient ? (
             serverCapabilities?.tools ? (
               <Tabs value="tools" className="w-full">
-                <ToolsTab
-                  serverSupportsTaskRequests={false}
-                  tools={tools}
-                  listTools={() => {
-                    setToolError(null);
-                    void listTools();
-                  }}
-                  clearTools={() => {
-                    setTools([]);
-                    setNextToolCursor(undefined);
-                    cacheToolOutputSchemas([]);
-                  }}
-                  callTool={async (name, params, metadata) => {
-                    setToolError(null);
-                    setToolResult(null);
-                    return await callTool(name, params, metadata);
-                  }}
-                  selectedTool={selectedTool}
-                  setSelectedTool={(tool) => {
-                    setToolError(null);
-                    setSelectedTool(tool);
-                    setToolResult(null);
-                  }}
-                  toolResult={toolResult}
-                  isPollingTask={false}
-                  nextCursor={nextToolCursor}
-                  error={toolError}
-                  resourceContent={{}}
-                />
+                <LocalErrorBoundary area="工具调用">
+                  <ToolsTab
+                    serverSupportsTaskRequests={false}
+                    tools={tools}
+                    listTools={() => {
+                      setToolError(null);
+                      void listTools();
+                    }}
+                    clearTools={() => {
+                      setTools([]);
+                      setNextToolCursor(undefined);
+                      cacheToolOutputSchemas([]);
+                    }}
+                    callTool={async (name, params, metadata) => {
+                      setToolError(null);
+                      setToolResult(null);
+                      return await callTool(name, params, metadata);
+                    }}
+                    selectedTool={selectedTool}
+                    setSelectedTool={(tool) => {
+                      setToolError(null);
+                      setSelectedTool(tool);
+                      setToolResult(null);
+                    }}
+                    toolResult={toolResult}
+                    isPollingTask={false}
+                    nextCursor={nextToolCursor}
+                    error={toolError}
+                    resourceContent={{}}
+                  />
+                </LocalErrorBoundary>
               </Tabs>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
