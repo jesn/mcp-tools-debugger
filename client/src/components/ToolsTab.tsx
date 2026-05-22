@@ -834,59 +834,59 @@ const ToolsTab = ({
                     </Label>
                   </div>
                 )}
-                <Button
-                  onClick={async () => {
-                    // Validate JSON inputs before calling tool
-                    if (checkValidationErrors(true)) return;
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    onClick={async () => {
+                      // Validate JSON inputs before calling tool
+                      if (checkValidationErrors(true)) return;
 
-                    try {
-                      setIsToolRunning(true);
-                      const metadata = metadataEntries.reduce<
-                        Record<string, unknown>
-                      >((acc, { key, value }) => {
-                        const trimmedKey = key.trim();
-                        if (
-                          trimmedKey !== "" &&
-                          hasValidMetaPrefix(trimmedKey) &&
-                          !isReservedMetaKey(trimmedKey) &&
-                          hasValidMetaName(trimmedKey)
-                        ) {
-                          acc[trimmedKey] = value;
-                        }
-                        return acc;
-                      }, {});
-                      await callTool(
-                        selectedTool.name,
-                        params,
-                        Object.keys(metadata).length ? metadata : undefined,
-                        runAsTask,
-                      );
-                    } finally {
-                      setIsToolRunning(false);
+                      try {
+                        setIsToolRunning(true);
+                        const metadata = metadataEntries.reduce<
+                          Record<string, unknown>
+                        >((acc, { key, value }) => {
+                          const trimmedKey = key.trim();
+                          if (
+                            trimmedKey !== "" &&
+                            hasValidMetaPrefix(trimmedKey) &&
+                            !isReservedMetaKey(trimmedKey) &&
+                            hasValidMetaName(trimmedKey)
+                          ) {
+                            acc[trimmedKey] = value;
+                          }
+                          return acc;
+                        }, {});
+                        await callTool(
+                          selectedTool.name,
+                          params,
+                          Object.keys(metadata).length ? metadata : undefined,
+                          runAsTask,
+                        );
+                      } finally {
+                        setIsToolRunning(false);
+                      }
+                    }}
+                    disabled={
+                      isToolRunning ||
+                      isPollingTask ||
+                      hasValidationErrors ||
+                      hasReservedMetadataEntry ||
+                      hasInvalidMetaPrefixEntry ||
+                      hasInvalidMetaNameEntry
                     }
-                  }}
-                  disabled={
-                    isToolRunning ||
-                    isPollingTask ||
-                    hasValidationErrors ||
-                    hasReservedMetadataEntry ||
-                    hasInvalidMetaPrefixEntry ||
-                    hasInvalidMetaNameEntry
-                  }
-                >
-                  {isToolRunning || isPollingTask ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      {isPollingTask ? "Polling Task..." : "Running..."}
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4 mr-2" />
-                      Run Tool
-                    </>
-                  )}
-                </Button>
-                <div className="flex gap-2">
+                  >
+                    {isToolRunning || isPollingTask ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {isPollingTask ? "Polling Task..." : "Running..."}
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        Run Tool
+                      </>
+                    )}
+                  </Button>
                   <QuickSaveTemplate
                     onSave={(name, description) => {
                       onCreateTemplate(
