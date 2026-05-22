@@ -77,10 +77,10 @@ const App = () => {
   }, []);
 
   // ---- Tool History ----
-  const toolHistory = useToolHistory();
+  const toolHistory = useToolHistory(activeProfile.id);
 
   // ---- Param Templates ----
-  const paramTemplates = useParamTemplates();
+  const paramTemplates = useParamTemplates(activeProfile.id);
 
   // ---- Toast ----
   const { toast } = useToast();

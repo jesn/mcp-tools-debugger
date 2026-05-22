@@ -1,16 +1,17 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { ToolHistoryEntry, ToolHistoryState } from "../types/toolHistory";
 import type { CompatibilityCallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 const MAX_HISTORY_ENTRIES = 100;
-const STORAGE_KEY = "mcp-inspector-tool-history";
+const STORAGE_KEY_PREFIX = "mcp-inspector-tool-history";
 
-/**
- * 从 localStorage 加载历史记录
- */
-const loadHistory = (): ToolHistoryEntry[] => {
+// 每个 Profile 独立存储 key，未指定时回落到 default 命名空间，保持向下兼容
+const getStorageKey = (profileId?: string): string =>
+  `${STORAGE_KEY_PREFIX}-${profileId ?? "default"}`;
+
+const loadHistory = (profileId?: string): ToolHistoryEntry[] => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(getStorageKey(profileId));
     if (!stored) return [];
     return JSON.parse(stored);
   } catch (error) {
@@ -19,34 +20,46 @@ const loadHistory = (): ToolHistoryEntry[] => {
   }
 };
 
-/**
- * 保存历史记录到 localStorage
- */
-const saveHistory = (entries: ToolHistoryEntry[]) => {
+const saveHistory = (entries: ToolHistoryEntry[], profileId?: string) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    localStorage.setItem(getStorageKey(profileId), JSON.stringify(entries));
   } catch (error) {
     console.error("Failed to save tool history:", error);
   }
 };
 
 /**
- * Tool 调用历史管理 Hook
+ * Tool 调用历史管理 Hook（按 Profile 隔离存储）
  */
-export const useToolHistory = () => {
+export const useToolHistory = (profileId?: string) => {
   const [state, setState] = useState<ToolHistoryState>(() => ({
-    entries: loadHistory(),
+    entries: loadHistory(profileId),
     maxEntries: MAX_HISTORY_ENTRIES,
   }));
 
-  // 自动保存到 localStorage
+  // 切换 Profile：重新加载对应命名空间的历史
+  const profileIdRef = useRef(profileId);
   useEffect(() => {
-    saveHistory(state.entries);
-  }, [state.entries]);
+    if (profileIdRef.current === profileId) return;
+    profileIdRef.current = profileId;
+    setState({
+      entries: loadHistory(profileId),
+      maxEntries: MAX_HISTORY_ENTRIES,
+    });
+  }, [profileId]);
 
-  /**
-   * 添加历史记录
-   */
+  // 持久化辅助：避免 useEffect 在 profileId 切换瞬间将旧数据写入新 key
+  const persistAndSet = useCallback(
+    (updater: (prev: ToolHistoryState) => ToolHistoryState) => {
+      setState((prev) => {
+        const next = updater(prev);
+        saveHistory(next.entries, profileIdRef.current);
+        return next;
+      });
+    },
+    [],
+  );
+
   const addEntry = useCallback(
     (
       toolName: string,
@@ -66,38 +79,31 @@ export const useToolHistory = () => {
         duration,
       };
 
-      setState((prev) => {
+      persistAndSet((prev) => {
         const newEntries = [entry, ...prev.entries];
-        // 保持最大数量限制
         if (newEntries.length > prev.maxEntries) {
           newEntries.pop();
         }
         return { ...prev, entries: newEntries };
       });
     },
-    [],
+    [persistAndSet],
   );
 
-  /**
-   * 清空历史记录
-   */
   const clearHistory = useCallback(() => {
-    setState((prev) => ({ ...prev, entries: [] }));
-  }, []);
+    persistAndSet((prev) => ({ ...prev, entries: [] }));
+  }, [persistAndSet]);
 
-  /**
-   * 删除单条记录
-   */
-  const deleteEntry = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      entries: prev.entries.filter((e) => e.id !== id),
-    }));
-  }, []);
+  const deleteEntry = useCallback(
+    (id: string) => {
+      persistAndSet((prev) => ({
+        ...prev,
+        entries: prev.entries.filter((e) => e.id !== id),
+      }));
+    },
+    [persistAndSet],
+  );
 
-  /**
-   * 导出历史记录为 JSON
-   */
   const exportHistory = useCallback(() => {
     const data = JSON.stringify(state.entries, null, 2);
     const blob = new Blob([data], { type: "application/json" });

@@ -1,15 +1,16 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { ParamTemplate, ParamTemplateState } from "../types/paramTemplate";
 import type { JsonValue } from "@/utils/jsonUtils";
 
-const STORAGE_KEY = "mcp-inspector-param-templates";
+const STORAGE_KEY_PREFIX = "mcp-inspector-param-templates";
 
-/**
- * 从 localStorage 加载模板
- */
-const loadTemplates = (): ParamTemplate[] => {
+// 每个 Profile 独立存储 key
+const getStorageKey = (profileId?: string): string =>
+  `${STORAGE_KEY_PREFIX}-${profileId ?? "default"}`;
+
+const loadTemplates = (profileId?: string): ParamTemplate[] => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(getStorageKey(profileId));
     if (!stored) return [];
     return JSON.parse(stored);
   } catch (error) {
@@ -18,33 +19,45 @@ const loadTemplates = (): ParamTemplate[] => {
   }
 };
 
-/**
- * 保存模板到 localStorage
- */
-const saveTemplates = (templates: ParamTemplate[]) => {
+const saveTemplates = (templates: ParamTemplate[], profileId?: string) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+    localStorage.setItem(
+      getStorageKey(profileId),
+      JSON.stringify(templates),
+    );
   } catch (error) {
     console.error("Failed to save param templates:", error);
   }
 };
 
 /**
- * 参数模板管理 Hook
+ * 参数模板管理 Hook（按 Profile 隔离存储）
  */
-export const useParamTemplates = () => {
+export const useParamTemplates = (profileId?: string) => {
   const [state, setState] = useState<ParamTemplateState>(() => ({
-    templates: loadTemplates(),
+    templates: loadTemplates(profileId),
   }));
 
-  // 自动保存到 localStorage
+  // 切换 Profile：重新加载对应命名空间的模板
+  const profileIdRef = useRef(profileId);
   useEffect(() => {
-    saveTemplates(state.templates);
-  }, [state.templates]);
+    if (profileIdRef.current === profileId) return;
+    profileIdRef.current = profileId;
+    setState({ templates: loadTemplates(profileId) });
+  }, [profileId]);
 
-  /**
-   * 创建新模板
-   */
+  // 持久化辅助：避免 useEffect 在 profileId 切换瞬间将旧数据写入新 key
+  const persistAndSet = useCallback(
+    (updater: (prev: ParamTemplateState) => ParamTemplateState) => {
+      setState((prev) => {
+        const next = updater(prev);
+        saveTemplates(next.templates, profileIdRef.current);
+        return next;
+      });
+    },
+    [],
+  );
+
   const createTemplate = useCallback(
     (
       name: string,
@@ -62,44 +75,38 @@ export const useParamTemplates = () => {
         description,
       };
 
-      setState((prev) => ({
+      persistAndSet((prev) => ({
         templates: [...prev.templates, template],
       }));
 
       return template;
     },
-    [],
+    [persistAndSet],
   );
 
-  /**
-   * 更新模板
-   */
   const updateTemplate = useCallback(
     (
       id: string,
       updates: Partial<Omit<ParamTemplate, "id" | "toolName" | "createdAt">>,
     ) => {
-      setState((prev) => ({
+      persistAndSet((prev) => ({
         templates: prev.templates.map((t) =>
           t.id === id ? { ...t, ...updates } : t,
         ),
       }));
     },
-    [],
+    [persistAndSet],
   );
 
-  /**
-   * 删除模板
-   */
-  const deleteTemplate = useCallback((id: string) => {
-    setState((prev) => ({
-      templates: prev.templates.filter((t) => t.id !== id),
-    }));
-  }, []);
+  const deleteTemplate = useCallback(
+    (id: string) => {
+      persistAndSet((prev) => ({
+        templates: prev.templates.filter((t) => t.id !== id),
+      }));
+    },
+    [persistAndSet],
+  );
 
-  /**
-   * 获取指定 Tool 的所有模板
-   */
   const getTemplatesForTool = useCallback(
     (toolName: string): ParamTemplate[] => {
       return state.templates.filter((t) => t.toolName === toolName);
@@ -107,29 +114,26 @@ export const useParamTemplates = () => {
     [state.templates],
   );
 
-  /**
-   * 使用模板（更新最后使用时间和使用次数）
-   */
-  const useTemplate = useCallback((id: string) => {
-    setState((prev) => ({
-      templates: prev.templates.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              lastUsedAt: Date.now(),
-              usageCount: (t.usageCount ?? 0) + 1,
-            }
-          : t,
-      ),
-    }));
-  }, []);
+  const useTemplate = useCallback(
+    (id: string) => {
+      persistAndSet((prev) => ({
+        templates: prev.templates.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                lastUsedAt: Date.now(),
+                usageCount: (t.usageCount ?? 0) + 1,
+              }
+            : t,
+        ),
+      }));
+    },
+    [persistAndSet],
+  );
 
-  /**
-   * 清空所有模板
-   */
   const clearAllTemplates = useCallback(() => {
-    setState({ templates: [] });
-  }, []);
+    persistAndSet(() => ({ templates: [] }));
+  }, [persistAndSet]);
 
   return {
     templates: state.templates,
