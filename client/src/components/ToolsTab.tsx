@@ -45,6 +45,7 @@ import useCopy from "@/lib/hooks/useCopy";
 import IconDisplay, { WithIcons } from "./IconDisplay";
 import { cn } from "@/lib/utils";
 import ParamTemplateManager from "./ParamTemplateManager";
+import QuickSaveTemplate from "./QuickSaveTemplate";
 import type { ParamTemplate } from "@/lib/types/paramTemplate";
 import {
   META_NAME_RULES_MESSAGE,
@@ -886,6 +887,15 @@ const ToolsTab = ({
                   )}
                 </Button>
                 <div className="flex gap-2">
+                  <QuickSaveTemplate
+                    onSave={(name, description) => {
+                      onCreateTemplate(
+                        name,
+                        params as Record<string, JsonValue>,
+                        description,
+                      );
+                    }}
+                  />
                   <ParamTemplateManager
                     toolName={selectedTool.name}
                     currentParams={params as Record<string, JsonValue>}
@@ -900,6 +910,10 @@ const ToolsTab = ({
                     onApplyTemplate={(template) => {
                       setParams(template.params as Record<string, unknown>);
                       onApplyTemplate(template.params);
+                      toast({
+                        title: "模板已应用",
+                        description: `已应用模板：${template.name}`,
+                      });
                     }}
                     onDeleteTemplate={onDeleteTemplate}
                     onUpdateTemplate={onUpdateTemplate}

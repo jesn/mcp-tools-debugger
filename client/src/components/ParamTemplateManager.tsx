@@ -18,10 +18,14 @@ import {
   Edit2,
   Check,
   X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import type { ParamTemplate } from "@/lib/types/paramTemplate";
 import type { JsonValue } from "@/utils/jsonUtils";
 import { useState } from "react";
+import { useToast } from "@/lib/hooks/useToast";
+import JsonView from "./JsonView";
 
 interface ParamTemplateManagerProps {
   toolName: string;
@@ -62,6 +66,8 @@ export default function ParamTemplateManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const handleCreate = () => {
     if (!newTemplateName.trim()) return;
@@ -69,6 +75,10 @@ export default function ParamTemplateManager({
       newTemplateName.trim(),
       newTemplateDesc.trim() || undefined,
     );
+    toast({
+      title: "模板已保存",
+      description: `模板"${newTemplateName.trim()}"已成功保存`,
+    });
     setNewTemplateName("");
     setNewTemplateDesc("");
     setIsCreateMode(false);
@@ -86,6 +96,10 @@ export default function ParamTemplateManager({
       name: editName.trim(),
       description: editDesc.trim() || undefined,
     });
+    toast({
+      title: "模板已更新",
+      description: `模板"${editName.trim()}"已成功更新`,
+    });
     setEditingId(null);
   };
 
@@ -93,6 +107,14 @@ export default function ParamTemplateManager({
     setEditingId(null);
     setEditName("");
     setEditDesc("");
+  };
+
+  const handleDelete = (template: ParamTemplate) => {
+    onDeleteTemplate(template.id);
+    toast({
+      title: "模板已删除",
+      description: `模板"${template.name}"已被删除`,
+    });
   };
 
   return (
@@ -166,7 +188,7 @@ export default function ParamTemplateManager({
               variant="outline"
               size="sm"
               onClick={() => setIsCreateMode(true)}
-              className="mb-4 w-full"
+              className="mb-4 w-full border-dashed hover:border-primary hover:bg-primary/5"
             >
               <BookmarkPlus className="w-4 h-4 mr-2" />
               保存当前参数为模板
@@ -174,16 +196,17 @@ export default function ParamTemplateManager({
           )}
 
           {templates.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
-              <Bookmark className="w-12 h-12 mb-2 opacity-20" />
-              <p className="text-sm">暂无参数模板</p>
+            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground border-2 border-dashed rounded-lg">
+              <Bookmark className="w-12 h-12 mb-3 opacity-20" />
+              <p className="text-sm font-medium mb-1">暂无参数模板</p>
+              <p className="text-xs">填写参数后点击上方按钮保存为模板</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {templates.map((template) => (
                 <div
                   key={template.id}
-                  className="border rounded-lg p-3 hover:bg-accent/50 transition-colors"
+                  className="border rounded-lg p-4 hover:bg-accent/30 transition-colors shadow-sm"
                 >
                   {editingId === template.id ? (
                     <div className="space-y-2">
@@ -215,29 +238,53 @@ export default function ParamTemplateManager({
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold truncate">
+                          <h4 className="font-semibold text-base truncate mb-1">
                             {template.name}
                           </h4>
                           {template.description && (
-                            <p className="text-sm text-muted-foreground mt-1">
+                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
                               {template.description}
                             </p>
                           )}
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              创建: {formatTimestamp(template.createdAt)}
+                              {formatTimestamp(template.createdAt)}
                             </span>
                             {template.lastUsedAt && (
-                              <span>
-                                最后使用: {formatTimestamp(template.lastUsedAt)}
+                              <span className="flex items-center gap-1">
+                                <span className="text-green-600 dark:text-green-400">
+                                  ●
+                                </span>
+                                最近使用: {formatTimestamp(template.lastUsedAt)}
                               </span>
                             )}
                           </div>
                         </div>
-                        <div className="flex gap-1 flex-shrink-0">
+                        <div className="flex gap-1 flex-shrink-0 items-start">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setPreviewId(
+                                previewId === template.id ? null : template.id,
+                              )
+                            }
+                            title={
+                              previewId === template.id
+                                ? "隐藏预览"
+                                : "预览参数"
+                            }
+                            className="h-8 w-8 p-0"
+                          >
+                            {previewId === template.id ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -248,6 +295,7 @@ export default function ParamTemplateManager({
                               }
                             }}
                             title="应用此模板"
+                            className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950"
                           >
                             <Check className="w-4 h-4" />
                           </Button>
@@ -256,19 +304,32 @@ export default function ParamTemplateManager({
                             size="sm"
                             onClick={() => handleStartEdit(template)}
                             title="编辑模板"
+                            className="h-8 w-8 p-0"
                           >
                             <Edit2 className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => onDeleteTemplate(template.id)}
+                            onClick={() => handleDelete(template)}
                             title="删除模板"
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
+                      {previewId === template.id && (
+                        <div className="mt-3 p-3 bg-muted rounded-md">
+                          <div className="text-xs font-semibold mb-2 text-muted-foreground">
+                            参数预览:
+                          </div>
+                          <JsonView
+                            data={template.params}
+                            className="max-h-60 overflow-auto"
+                          />
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
