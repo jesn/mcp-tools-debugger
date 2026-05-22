@@ -58,6 +58,7 @@ export const useParamTemplates = () => {
         toolName,
         params,
         createdAt: Date.now(),
+        usageCount: 0,
         description,
       };
 
@@ -107,12 +108,18 @@ export const useParamTemplates = () => {
   );
 
   /**
-   * 使用模板（更新最后使用时间）
+   * 使用模板（更新最后使用时间和使用次数）
    */
   const useTemplate = useCallback((id: string) => {
     setState((prev) => ({
       templates: prev.templates.map((t) =>
-        t.id === id ? { ...t, lastUsedAt: Date.now() } : t,
+        t.id === id
+          ? {
+              ...t,
+              lastUsedAt: Date.now(),
+              usageCount: (t.usageCount ?? 0) + 1,
+            }
+          : t,
       ),
     }));
   }, []);

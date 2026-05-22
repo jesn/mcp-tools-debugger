@@ -9,6 +9,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   BookmarkPlus,
@@ -20,12 +27,23 @@ import {
   X,
   Eye,
   EyeOff,
+  Search,
+  ArrowUpDown,
 } from "lucide-react";
 import type { ParamTemplate } from "@/lib/types/paramTemplate";
 import type { JsonValue } from "@/utils/jsonUtils";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useToast } from "@/lib/hooks/useToast";
 import JsonView from "./JsonView";
+
+type SortOption = "recent" | "created" | "name" | "usage";
+
+const SORT_LABELS: Record<SortOption, string> = {
+  recent: "最近使用",
+  created: "最近创建",
+  name: "名称 A-Z",
+  usage: "使用次数",
+};
 
 interface ParamTemplateManagerProps {
   toolName: string;
@@ -67,7 +85,36 @@ export default function ParamTemplateManager({
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("recent");
   const { toast } = useToast();
+
+  const visibleTemplates = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const filtered = query
+      ? templates.filter(
+          (t) =>
+            t.name.toLowerCase().includes(query) ||
+            (t.description?.toLowerCase().includes(query) ?? false),
+        )
+      : templates;
+
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "recent":
+          return (b.lastUsedAt ?? 0) - (a.lastUsedAt ?? 0);
+        case "created":
+          return b.createdAt - a.createdAt;
+        case "name":
+          return a.name.localeCompare(b.name, "zh-CN");
+        case "usage":
+          return (b.usageCount ?? 0) - (a.usageCount ?? 0);
+        default:
+          return 0;
+      }
+    });
+    return sorted;
+  }, [templates, searchQuery, sortBy]);
 
   const handleCreate = () => {
     if (!newTemplateName.trim()) return;
@@ -132,6 +179,37 @@ export default function ParamTemplateManager({
             保存和管理常用参数配置，快速填充表单
           </DialogDescription>
         </DialogHeader>
+
+        {templates.length > 0 && (
+          <div className="flex items-center gap-2 pt-1">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="搜索模板名称或描述..."
+                className="pl-9"
+                aria-label="搜索模板"
+              />
+            </div>
+            <Select
+              value={sortBy}
+              onValueChange={(value) => setSortBy(value as SortOption)}
+            >
+              <SelectTrigger className="w-[150px]" aria-label="排序方式">
+                <ArrowUpDown className="w-4 h-4 mr-1" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {SORT_LABELS[option]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto pr-2">
           {isCreateMode ? (
@@ -201,9 +279,15 @@ export default function ParamTemplateManager({
               <p className="text-sm font-medium mb-1">暂无参数模板</p>
               <p className="text-xs">填写参数后点击上方按钮保存为模板</p>
             </div>
+          ) : visibleTemplates.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32 text-muted-foreground border-2 border-dashed rounded-lg">
+              <Search className="w-8 h-8 mb-2 opacity-20" />
+              <p className="text-sm">没有匹配的模板</p>
+              <p className="text-xs">试试其他关键词</p>
+            </div>
           ) : (
             <div className="space-y-3">
-              {templates.map((template) => (
+              {visibleTemplates.map((template) => (
                 <div
                   key={template.id}
                   className="border rounded-lg p-4 hover:bg-accent/30 transition-colors shadow-sm"
@@ -240,9 +324,19 @@ export default function ParamTemplateManager({
                     <>
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-base truncate mb-1">
-                            {template.name}
-                          </h4>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold text-base truncate">
+                              {template.name}
+                            </h4>
+                            {(template.usageCount ?? 0) > 0 && (
+                              <span
+                                className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 flex-shrink-0"
+                                title={`已使用 ${template.usageCount} 次`}
+                              >
+                                {template.usageCount}×
+                              </span>
+                            )}
+                          </div>
                           {template.description && (
                             <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
                               {template.description}

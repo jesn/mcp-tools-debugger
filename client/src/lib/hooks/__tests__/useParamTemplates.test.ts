@@ -122,6 +122,34 @@ describe("useParamTemplates", () => {
     expect(result.current.templates[0].lastUsedAt).toBeGreaterThan(0);
   });
 
+  it("使用模板时累加使用次数", () => {
+    const { result } = renderHook(() => useParamTemplates());
+
+    let templateId: string;
+
+    act(() => {
+      const template = result.current.createTemplate(
+        "计数模板",
+        "test-tool",
+        {},
+      );
+      templateId = template.id;
+    });
+
+    expect(result.current.templates[0].usageCount).toBe(0);
+
+    act(() => {
+      result.current.useTemplate(templateId);
+    });
+    expect(result.current.templates[0].usageCount).toBe(1);
+
+    act(() => {
+      result.current.useTemplate(templateId);
+      result.current.useTemplate(templateId);
+    });
+    expect(result.current.templates[0].usageCount).toBe(3);
+  });
+
   it("清空所有模板", () => {
     const { result } = renderHook(() => useParamTemplates());
 

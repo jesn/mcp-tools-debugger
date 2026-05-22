@@ -16,6 +16,8 @@ export interface ParamTemplate {
   createdAt: number;
   /** 最后使用时间戳 */
   lastUsedAt?: number;
+  /** 使用次数（默认 0） */
+  usageCount?: number;
   /** 描述（可选） */
   description?: string;
 }
