@@ -136,29 +136,34 @@ const App = () => {
     defaultLoggingLevel: logLevel,
   });
 
-  // 保存连接状态到 localStorage
+  // 自动重连：仅在初始挂载（F5 刷新）时读取上次连接状态触发一次
+  // 注意：StrictMode 下 effect 会双触发，ref 守卫保证 connect 只调用一次；
+  // 不使用 setTimeout + cleanup，避免 StrictMode 在 cleanup 阶段清除定时器
+  const autoReconnectAttemptedRef = useRef(false);
   useEffect(() => {
+    if (autoReconnectAttemptedRef.current) return;
     const key = `mcp-connection-status-${activeProfile.id}`;
+    if (localStorage.getItem(key) !== "true") return;
+    autoReconnectAttemptedRef.current = true;
+    console.info("[MCP Inspector] 检测到上次连接状态，自动重连...");
+    void connectMcpServer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 仅在成功连接后写入标志；用户主动断开时由 handleDisconnect 清除
+  useEffect(() => {
     if (connectionStatus === "connected") {
+      const key = `mcp-connection-status-${activeProfile.id}`;
       localStorage.setItem(key, "true");
-    } else if (connectionStatus === "disconnected") {
-      localStorage.removeItem(key);
     }
   }, [connectionStatus, activeProfile.id]);
 
-  // 页面加载时自动重连
-  useEffect(() => {
+  const handleManualDisconnect = useCallback(async () => {
     const key = `mcp-connection-status-${activeProfile.id}`;
-    const wasConnected = localStorage.getItem(key) === "true";
-
-    if (wasConnected && connectionStatus === "disconnected") {
-      // 延迟一小段时间，确保组件完全初始化
-      const timer = setTimeout(() => {
-        connectMcpServer();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [activeProfile.id]); // 仅在 profile 切换时触发
+    localStorage.removeItem(key);
+    autoReconnectAttemptedRef.current = true;
+    await disconnectMcpServer();
+  }, [activeProfile.id, disconnectMcpServer]);
 
   const sendMCPRequest = async <T extends AnySchema>(
     request: ClientRequest,
@@ -457,7 +462,7 @@ const App = () => {
               cloneActiveProfile={profilesApi.cloneActiveProfile}
               connectionStatus={connectionStatus}
               onConnect={connectMcpServer}
-              onDisconnect={disconnectMcpServer}
+              onDisconnect={handleManualDisconnect}
               logLevel={logLevel}
               sendLogLevelRequest={sendLogLevelRequest}
               loggingSupported={!!serverCapabilities?.logging || false}
