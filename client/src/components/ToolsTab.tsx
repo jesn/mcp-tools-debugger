@@ -372,13 +372,11 @@ const ToolsTab = ({
                 <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap max-h-48 overflow-y-auto">
                   {selectedTool.description}
                 </p>
-                <AnnotationBadges
-                  annotations={
-                    hasAnnotations(selectedTool)
-                      ? selectedTool.annotations
-                      : undefined
-                  }
-                />
+                {hasAnnotations(selectedTool) && (
+                  <AnnotationBadges
+                    annotations={selectedTool.annotations}
+                  />
+                )}
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button
                     onClick={async () => {
@@ -728,14 +726,30 @@ const ToolsTab = ({
                 )}
                 <div className="pb-4">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-semibold">
-                      Tool-specific Metadata:
-                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setIsMetadataExpanded((v) => !v)}
+                      className="flex items-center gap-1 text-sm font-semibold hover:text-primary transition-colors"
+                      aria-expanded={isMetadataExpanded}
+                    >
+                      {isMetadataExpanded ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                      Tool-specific Metadata
+                      {metadataEntries.length > 0 && (
+                        <span className="ml-1 text-xs font-normal text-muted-foreground">
+                          ({metadataEntries.length})
+                        </span>
+                      )}
+                    </button>
                     <Button
                       size="sm"
                       variant="outline"
                       className="h-6 px-2"
-                      onClick={() =>
+                      onClick={() => {
+                        setIsMetadataExpanded(true);
                         setMetadataEntries((prev) => [
                           ...prev,
                           {
@@ -749,17 +763,13 @@ const ToolsTab = ({
                             key: "",
                             value: "",
                           },
-                        ])
-                      }
+                        ]);
+                      }}
                     >
                       Add Pair
                     </Button>
                   </div>
-                  {metadataEntries.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                      No metadata pairs.
-                    </p>
-                  ) : (
+                  {isMetadataExpanded && metadataEntries.length > 0 && (
                     <div className="space-y-2">
                       {metadataEntries.map((entry, index) => {
                         const trimmedKey = entry.key.trim();
