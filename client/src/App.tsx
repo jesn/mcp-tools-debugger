@@ -31,7 +31,6 @@ import { useDraggableSidebar } from "./lib/hooks/useDraggablePane";
 import { useProfiles } from "./lib/hooks/useProfiles";
 import { useToolHistory } from "./lib/hooks/useToolHistory";
 import { useParamTemplates } from "./lib/hooks/useParamTemplates";
-import { migrateGlobalStorageToProfile } from "./lib/migrations/profileScopedStorage";
 import { useToast } from "./lib/hooks/useToast";
 
 import { Button } from "@/components/ui/button";
@@ -78,10 +77,6 @@ const App = () => {
   }, []);
 
   // ---- Tool History ----
-  // 在 hooks 初始化前同步执行一次性数据迁移：把旧全局 key 的数据归到当前 active profile
-  useState(() => {
-    migrateGlobalStorageToProfile(activeProfile.id);
-  });
   const toolHistory = useToolHistory(activeProfile.id);
 
   // ---- Param Templates ----
