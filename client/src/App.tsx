@@ -518,30 +518,6 @@ const App = () => {
           ) : mcpClient ? (
             serverCapabilities?.tools ? (
               <div className="w-full">
-                <div className="flex justify-end mb-4">
-                  <ToolHistorySidebar
-                    entries={toolHistory.entries}
-                    onClearHistory={toolHistory.clearHistory}
-                    onDeleteEntry={toolHistory.deleteEntry}
-                    onExportHistory={toolHistory.exportHistory}
-                    onReplay={(entry) => {
-                      // 回放：选择对应的 tool 并填充参数
-                      const tool = tools.find((t) => t.name === entry.toolName);
-                      if (tool) {
-                        setSelectedTool(tool);
-                        setReplayParams(entry.params);
-                        // 清空之前的结果
-                        setToolResult(null);
-                        setToolError(null);
-                        // 显示 toast 提示
-                        toast({
-                          title: "参数已填充",
-                          description: `已回放 ${entry.toolName} 的调用参数`,
-                        });
-                      }
-                    }}
-                  />
-                </div>
                 <Tabs value="tools" className="w-full">
                   <LocalErrorBoundary area="工具调用">
                     <ToolsTab
@@ -597,6 +573,29 @@ const App = () => {
                       onUpdateTemplate={paramTemplates.updateTemplate}
                       onUseTemplate={paramTemplates.useTemplate}
                       replayParams={replayParams}
+                      headerAction={
+                        <ToolHistorySidebar
+                          entries={toolHistory.entries}
+                          onClearHistory={toolHistory.clearHistory}
+                          onDeleteEntry={toolHistory.deleteEntry}
+                          onExportHistory={toolHistory.exportHistory}
+                          onReplay={(entry) => {
+                            const tool = tools.find(
+                              (t) => t.name === entry.toolName,
+                            );
+                            if (tool) {
+                              setSelectedTool(tool);
+                              setReplayParams(entry.params);
+                              setToolResult(null);
+                              setToolError(null);
+                              toast({
+                                title: "参数已填充",
+                                description: `已回放 ${entry.toolName} 的调用参数`,
+                              });
+                            }
+                          }}
+                        />
+                      }
                     />
                   </LocalErrorBoundary>
                 </Tabs>

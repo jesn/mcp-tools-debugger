@@ -188,6 +188,7 @@ const ToolsTab = ({
   onUpdateTemplate,
   onUseTemplate,
   replayParams,
+  headerAction,
 }: {
   tools: Tool[];
   listTools: () => void;
@@ -221,6 +222,7 @@ const ToolsTab = ({
   ) => void;
   onUseTemplate?: (id: string) => void;
   replayParams?: Record<string, unknown> | null;
+  headerAction?: React.ReactNode;
 }) => {
   const [params, setParams] = useState<Record<string, unknown>>({});
   const [runAsTask, setRunAsTask] = useState(false);
@@ -336,18 +338,23 @@ const ToolsTab = ({
 
         <div className="bg-card border border-border rounded-lg shadow">
           <div className="p-4 border-b border-gray-200 dark:border-border">
-            <div className="flex items-center gap-2">
-              {selectedTool && (
-                <IconDisplay
-                  icons={(selectedTool as ExtendedTool).icons}
-                  size="md"
-                />
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                {selectedTool && (
+                  <IconDisplay
+                    icons={(selectedTool as ExtendedTool).icons}
+                    size="md"
+                  />
+                )}
+                <h3 className="font-semibold truncate">
+                  {selectedTool
+                    ? selectedTool.title || selectedTool.name
+                    : "Select a tool"}
+                </h3>
+              </div>
+              {headerAction && (
+                <div className="flex-shrink-0">{headerAction}</div>
               )}
-              <h3 className="font-semibold">
-                {selectedTool
-                  ? selectedTool.title || selectedTool.name
-                  : "Select a tool"}
-              </h3>
             </div>
           </div>
           <div className="p-4">
@@ -372,6 +379,115 @@ const ToolsTab = ({
                       : undefined
                   }
                 />
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    onClick={async () => {
+                      // Validate JSON inputs before calling tool
+                      if (checkValidationErrors(true)) return;
+
+                      try {
+                        setIsToolRunning(true);
+                        const metadata = metadataEntries.reduce<
+                          Record<string, unknown>
+                        >((acc, { key, value }) => {
+                          const trimmedKey = key.trim();
+                          if (
+                            trimmedKey !== "" &&
+                            hasValidMetaPrefix(trimmedKey) &&
+                            !isReservedMetaKey(trimmedKey) &&
+                            hasValidMetaName(trimmedKey)
+                          ) {
+                            acc[trimmedKey] = value;
+                          }
+                          return acc;
+                        }, {});
+                        await callTool(
+                          selectedTool.name,
+                          params,
+                          Object.keys(metadata).length ? metadata : undefined,
+                          runAsTask,
+                        );
+                      } finally {
+                        setIsToolRunning(false);
+                      }
+                    }}
+                    disabled={
+                      isToolRunning ||
+                      isPollingTask ||
+                      hasValidationErrors ||
+                      hasReservedMetadataEntry ||
+                      hasInvalidMetaPrefixEntry ||
+                      hasInvalidMetaNameEntry
+                    }
+                  >
+                    {isToolRunning || isPollingTask ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {isPollingTask ? "Polling Task..." : "Running..."}
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        Run Tool
+                      </>
+                    )}
+                  </Button>
+                  <QuickSaveTemplate
+                    onSave={(name, description) => {
+                      onCreateTemplate(
+                        name,
+                        params as Record<string, JsonValue>,
+                        description,
+                      );
+                    }}
+                  />
+                  <ParamTemplateManager
+                    toolName={selectedTool.name}
+                    currentParams={params as Record<string, JsonValue>}
+                    templates={paramTemplates}
+                    onCreateTemplate={(name, description) => {
+                      onCreateTemplate(
+                        name,
+                        params as Record<string, JsonValue>,
+                        description,
+                      );
+                    }}
+                    onApplyTemplate={(template) => {
+                      setParams(template.params as Record<string, unknown>);
+                      onApplyTemplate(template.params);
+                      toast({
+                        title: "模板已应用",
+                        description: `已应用模板：${template.name}`,
+                      });
+                    }}
+                    onDeleteTemplate={onDeleteTemplate}
+                    onUpdateTemplate={onUpdateTemplate}
+                    onUseTemplate={onUseTemplate}
+                  />
+                  <Button
+                    onClick={async () => {
+                      try {
+                        navigator.clipboard.writeText(
+                          JSON.stringify(params, null, 2),
+                        );
+                        setCopied(true);
+                      } catch (error) {
+                        toast({
+                          title: "Error",
+                          description: `There was an error copying input to the clipboard: ${error instanceof Error ? error.message : String(error)}`,
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
+                    {copied ? (
+                      <CheckCheck className="h-4 w-4 mr-2 dark:text-green-700 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4 mr-2" />
+                    )}
+                    Copy Input
+                  </Button>
+                </div>
                 {Object.entries(selectedTool.inputSchema.properties ?? []).map(
                   ([key, value]) => {
                     // First resolve any $ref references
@@ -834,115 +950,6 @@ const ToolsTab = ({
                     </Label>
                   </div>
                 )}
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    onClick={async () => {
-                      // Validate JSON inputs before calling tool
-                      if (checkValidationErrors(true)) return;
-
-                      try {
-                        setIsToolRunning(true);
-                        const metadata = metadataEntries.reduce<
-                          Record<string, unknown>
-                        >((acc, { key, value }) => {
-                          const trimmedKey = key.trim();
-                          if (
-                            trimmedKey !== "" &&
-                            hasValidMetaPrefix(trimmedKey) &&
-                            !isReservedMetaKey(trimmedKey) &&
-                            hasValidMetaName(trimmedKey)
-                          ) {
-                            acc[trimmedKey] = value;
-                          }
-                          return acc;
-                        }, {});
-                        await callTool(
-                          selectedTool.name,
-                          params,
-                          Object.keys(metadata).length ? metadata : undefined,
-                          runAsTask,
-                        );
-                      } finally {
-                        setIsToolRunning(false);
-                      }
-                    }}
-                    disabled={
-                      isToolRunning ||
-                      isPollingTask ||
-                      hasValidationErrors ||
-                      hasReservedMetadataEntry ||
-                      hasInvalidMetaPrefixEntry ||
-                      hasInvalidMetaNameEntry
-                    }
-                  >
-                    {isToolRunning || isPollingTask ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        {isPollingTask ? "Polling Task..." : "Running..."}
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4 mr-2" />
-                        Run Tool
-                      </>
-                    )}
-                  </Button>
-                  <QuickSaveTemplate
-                    onSave={(name, description) => {
-                      onCreateTemplate(
-                        name,
-                        params as Record<string, JsonValue>,
-                        description,
-                      );
-                    }}
-                  />
-                  <ParamTemplateManager
-                    toolName={selectedTool.name}
-                    currentParams={params as Record<string, JsonValue>}
-                    templates={paramTemplates}
-                    onCreateTemplate={(name, description) => {
-                      onCreateTemplate(
-                        name,
-                        params as Record<string, JsonValue>,
-                        description,
-                      );
-                    }}
-                    onApplyTemplate={(template) => {
-                      setParams(template.params as Record<string, unknown>);
-                      onApplyTemplate(template.params);
-                      toast({
-                        title: "模板已应用",
-                        description: `已应用模板：${template.name}`,
-                      });
-                    }}
-                    onDeleteTemplate={onDeleteTemplate}
-                    onUpdateTemplate={onUpdateTemplate}
-                    onUseTemplate={onUseTemplate}
-                  />
-                  <Button
-                    onClick={async () => {
-                      try {
-                        navigator.clipboard.writeText(
-                          JSON.stringify(params, null, 2),
-                        );
-                        setCopied(true);
-                      } catch (error) {
-                        toast({
-                          title: "Error",
-                          description: `There was an error copying input to the clipboard: ${error instanceof Error ? error.message : String(error)}`,
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                  >
-                    {copied ? (
-                      <CheckCheck className="h-4 w-4 mr-2 dark:text-green-700 text-green-600" />
-                    ) : (
-                      <Copy className="h-4 w-4 mr-2" />
-                    )}
-                    Copy Input
-                  </Button>
-                </div>
                 <ToolResults
                   toolResult={toolResult}
                   selectedTool={selectedTool}
