@@ -55,6 +55,7 @@ import {
   hasValidMetaPrefix,
   isReservedMetaKey,
 } from "@/utils/metaUtils";
+import { copyTextToClipboard } from "@/utils/clipboard";
 
 /**
  * Extended Tool type that includes optional fields used by the inspector.
@@ -373,9 +374,7 @@ const ToolsTab = ({
                   {selectedTool.description}
                 </p>
                 {hasAnnotations(selectedTool) && (
-                  <AnnotationBadges
-                    annotations={selectedTool.annotations}
-                  />
+                  <AnnotationBadges annotations={selectedTool.annotations} />
                 )}
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button
@@ -465,7 +464,7 @@ const ToolsTab = ({
                   <Button
                     onClick={async () => {
                       try {
-                        navigator.clipboard.writeText(
+                        await copyTextToClipboard(
                           JSON.stringify(params, null, 2),
                         );
                         setCopied(true);

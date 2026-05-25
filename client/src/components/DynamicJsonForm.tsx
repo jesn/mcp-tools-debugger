@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import JsonEditor from "./JsonEditor";
 import { updateValueAtPath } from "@/utils/jsonUtils";
 import { generateDefaultValue } from "@/utils/schemaUtils";
+import { copyTextToClipboard } from "@/utils/clipboard";
 import type {
   JsonValue,
   JsonSchemaType,
@@ -267,9 +268,7 @@ const DynamicJsonForm = forwardRef<DynamicJsonFormRef, DynamicJsonFormProps>(
 
     const handleCopyJson = useCallback(async () => {
       try {
-        await navigator.clipboard.writeText(
-          JSON.stringify(value, null, 2) ?? "[]",
-        );
+        await copyTextToClipboard(JSON.stringify(value, null, 2) ?? "[]");
         setCopiedJson(true);
 
         toast({

@@ -50,6 +50,7 @@ import type {
   ProfilesState,
 } from "@/lib/profiles/types";
 import ProfileSwitcher from "./ProfileSwitcher";
+import { copyTextToClipboard } from "@/utils/clipboard";
 
 interface SidebarProps {
   connectionStatus: ConnectionStatus;
@@ -202,8 +203,7 @@ const Sidebar = ({
   const handleCopyServerEntry = useCallback(() => {
     try {
       const configJson = generateMCPServerEntry();
-      navigator.clipboard
-        .writeText(configJson)
+      copyTextToClipboard(configJson)
         .then(() => {
           setCopiedServerEntry(true);
 
@@ -232,8 +232,7 @@ const Sidebar = ({
   const handleCopyServerFile = useCallback(() => {
     try {
       const configJson = generateMCPServerFile();
-      navigator.clipboard
-        .writeText(configJson)
+      copyTextToClipboard(configJson)
         .then(() => {
           setCopiedServerFile(true);
 

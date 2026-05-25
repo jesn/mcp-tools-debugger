@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/lib/hooks/useToast";
 import { getDataType, tryParseJson } from "@/utils/jsonUtils";
 import useCopy from "@/lib/hooks/useCopy";
+import { copyTextToClipboard } from "@/utils/clipboard";
 
 interface JsonViewProps {
   data: unknown;
@@ -37,9 +38,9 @@ const JsonView = memo(
         : data;
     }, [data]);
 
-    const handleCopy = useCallback(() => {
+    const handleCopy = useCallback(async () => {
       try {
-        navigator.clipboard.writeText(
+        await copyTextToClipboard(
           typeof normalizedData === "string"
             ? normalizedData
             : JSON.stringify(normalizedData, null, 2),
@@ -48,7 +49,7 @@ const JsonView = memo(
       } catch (error) {
         toast({
           title: "Error",
-          description: `There was an error coping result into the clipboard: ${error instanceof Error ? error.message : String(error)}`,
+          description: `There was an error copying result into the clipboard: ${error instanceof Error ? error.message : String(error)}`,
           variant: "destructive",
         });
       }
@@ -132,7 +133,7 @@ const JsonNode = memo(
     }, [copied]);
 
     const handleCopyValue = useCallback(
-      (value: JsonValue) => {
+      async (value: JsonValue) => {
         try {
           let text: string;
           const valueType = getDataType(value);
@@ -153,12 +154,12 @@ const JsonNode = memo(
             default:
               text = JSON.stringify(value);
           }
-          navigator.clipboard.writeText(text);
+          await copyTextToClipboard(text);
           setCopied(true);
         } catch (error) {
           toast({
             title: "Error",
-            description: `There was an error coping result into the clipboard: ${error instanceof Error ? error.message : String(error)}`,
+            description: `There was an error copying result into the clipboard: ${error instanceof Error ? error.message : String(error)}`,
             variant: "destructive",
           });
         }
