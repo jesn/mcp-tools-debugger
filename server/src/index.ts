@@ -32,6 +32,7 @@ import { randomUUID, randomBytes, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { readFileSync } from "fs";
+import { isAllowedOrigin } from "./originValidation.js";
 
 const DEFAULT_MCP_PROXY_LISTEN_PORT = "6277";
 
@@ -235,14 +236,14 @@ const originValidationMiddleware = (
 ) => {
   const origin = req.headers.origin;
 
-  // Default origins based on CLIENT_PORT or use environment variable
-  const clientPort = process.env.CLIENT_PORT || "6274";
-  const defaultOrigin = `http://localhost:${clientPort}`;
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
-    defaultOrigin,
-  ];
-
-  if (origin && !allowedOrigins.includes(origin)) {
+  if (
+    !isAllowedOrigin({
+      origin,
+      requestHost: req.headers.host,
+      clientPort: process.env.CLIENT_PORT || "6274",
+      allowedOriginsEnv: process.env.ALLOWED_ORIGINS,
+    })
+  ) {
     console.error(`Invalid origin: ${origin}`);
     res.status(403).json({
       error: "Forbidden - invalid origin",

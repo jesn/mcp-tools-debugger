@@ -39,7 +39,7 @@
     "start": "node client/bin/start.js",
     "start-server": "cd server && npm run start",
     "start-client": "cd client && npm run preview",
-    "test": "npm run prettier-check && cd client && npm test",
+    "test": "npm run prettier-check && cd server && npm test && cd ../client && npm test",
     "prettier-fix": "prettier --write .",
     "prettier-check": "prettier --check .",
     "lint": "prettier --check . && cd client && npm run lint"

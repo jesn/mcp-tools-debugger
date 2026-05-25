@@ -16,6 +16,58 @@ MCP Tools Debugger 是基于 [modelcontextprotocol/inspector](https://github.com
 - 基于 Schema 填写参数并发起 `tools/call`。
 - 查看工具返回结果、错误信息和资源链接。
 
+## Docker 使用
+
+Docker 镜像页面：
+[mcp-tools-debugger](https://cnb.cool/rich/public/mcp-tools-debugger/-/packages/docker/mcp-tools-debugger)
+
+镜像地址：
+
+```text
+docker.cnb.cool/rich/public/mcp-tools-debugger:latest
+```
+
+拉取镜像：
+
+```bash
+docker pull docker.cnb.cool/rich/public/mcp-tools-debugger:latest
+```
+
+启动容器：
+
+```bash
+docker run -d \
+  --name mcp-tools-debugger \
+  -p 6274:6274 \
+  -p 6277:6277 \
+  -e HOST=0.0.0.0 \
+  docker.cnb.cool/rich/public/mcp-tools-debugger:latest
+```
+
+启动后访问：
+
+```text
+http://<服务器 IP>:6274
+```
+
+其中 `6274` 是 Web UI 端口，`6277` 是 MCP Proxy 端口。Windows 环境也可以直接使用仓库中的 `start-mcp-debugger.bat` 启动同一个镜像。
+
+### Origin 校验
+
+MCP Proxy 会校验浏览器请求的 `Origin`，用于降低 DNS rebinding 风险。Docker 默认配置支持通过 `http://<服务器 IP>:6274` 访问 Web UI，并允许同一服务器 IP 上的 Web UI 调用 `6277` 端口的 proxy。
+
+如果通过固定域名、反向代理或非默认端口访问 Web UI，需要显式配置允许来源：
+
+```bash
+docker run -d \
+  --name mcp-tools-debugger \
+  -p 6274:6274 \
+  -p 6277:6277 \
+  -e HOST=0.0.0.0 \
+  -e ALLOWED_ORIGINS=http://debug.example.com \
+  docker.cnb.cool/rich/public/mcp-tools-debugger:latest
+```
+
 ## 二开新增功能
 
 ### 左侧栏折叠
