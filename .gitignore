@@ -1,6 +1,7 @@
 .DS_Store
 .vscode
 .idea
+.codegraph/
 node_modules/
 *-workspace/
 server/build
