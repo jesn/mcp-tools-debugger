@@ -151,3 +151,4 @@ MIT，详见 [LICENSE](./LICENSE)。
 
 - 感谢 [Model Context Protocol](https://modelcontextprotocol.io/) 团队和 [MCP Inspector](https://github.com/modelcontextprotocol/inspector) 项目。
 - `client/src/lib/`、`client/src/utils/`、`client/src/components/ui/` 和 `server/` 中的大量代码来源于上游 MIT 许可项目，并在本项目中围绕 MCP Tool 调试场景做了裁剪和调整。
+- 感谢 [LINUX DO](https://linux.do/)
