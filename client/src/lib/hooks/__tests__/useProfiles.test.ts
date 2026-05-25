@@ -3,22 +3,18 @@
 import { describe, it, expect, beforeEach } from "@jest/globals";
 import { renderHook, act } from "@testing-library/react";
 import { useProfiles } from "../useProfiles";
-import {
-  PROFILES_STORAGE_KEY,
-  PROFILES_MIGRATION_FLAG,
-} from "@/lib/profiles/storage";
+import { PROFILES_STORAGE_KEY } from "@/lib/profiles/storage";
 
 beforeEach(() => {
   localStorage.clear();
 });
 
 describe("useProfiles", () => {
-  it("首次挂载创建默认 Profile 并标记为已迁移", () => {
+  it("首次挂载创建默认 Profile 并持久化", () => {
     const { result } = renderHook(() => useProfiles());
 
     expect(result.current.activeProfile).toBeDefined();
     expect(result.current.activeProfile.transportType).toBe("stdio");
-    expect(localStorage.getItem(PROFILES_MIGRATION_FLAG)).toBe("true");
     expect(localStorage.getItem(PROFILES_STORAGE_KEY)).toBeTruthy();
   });
 

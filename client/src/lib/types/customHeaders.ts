@@ -12,18 +12,6 @@ export const createEmptyHeader = (): CustomHeader => ({
   enabled: true,
 });
 
-export const createHeaderFromBearerToken = (
-  bearerToken: string,
-  headerName?: string,
-): CustomHeader => ({
-  name: headerName || "Authorization",
-  value:
-    headerName?.toLowerCase() === "authorization" || !headerName
-      ? `Bearer ${bearerToken}`
-      : bearerToken,
-  enabled: true,
-});
-
 export const getEnabledHeaders = (headers: CustomHeaders): CustomHeaders => {
   return headers.filter(
     (header) => header.enabled && header.name.trim() && header.value.trim(),
@@ -51,14 +39,4 @@ export const recordToHeaders = (
     value,
     enabled: true,
   }));
-};
-
-// Migration helper for backward compatibility
-export const migrateFromLegacyAuth = (
-  bearerToken?: string,
-  headerName?: string,
-): CustomHeaders => {
-  return bearerToken
-    ? [createHeaderFromBearerToken(bearerToken, headerName)]
-    : [];
 };

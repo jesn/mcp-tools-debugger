@@ -2,9 +2,7 @@
 //
 // 设计要点：
 // 1. 顶层 storage key 用 `mcpDebuggerProfiles_v1`，与现有 `inspectorConfig_v1` 命名风格一致，并预留 schema 升级空间。
-// 2. 首次加载时若发现旧的 14 个 last* 字段（来自 Inspector 原始实现），自动迁移成一份名为"默认"的 Profile，
-//    避免老用户配置丢失；迁移完成后写入 `mcpDebuggerProfiles_v1_migrated` 标志位防止重复迁移。
-// 3. 迁移仅做"读旧 key → 拼装 Profile → 写入新 key"，不主动删除旧 key——保留兜底，便于异常时回滚。
+// 2. 这是新项目的数据模型，不读取上游 Inspector 的 last* 旧缓存，避免过期配置污染当前 Profile。
 
 import type {
   ConnectionProfile,
@@ -12,30 +10,10 @@ import type {
   TransportType,
   ConnectionType,
 } from "./types";
-import {
-  type CustomHeaders,
-  migrateFromLegacyAuth,
-} from "@/lib/types/customHeaders";
 
 export const PROFILES_STORAGE_KEY = "mcpDebuggerProfiles_v1";
-export const PROFILES_MIGRATION_FLAG = "mcpDebuggerProfiles_v1_migrated";
 
 const DEFAULT_PROFILE_NAME = "默认";
-
-// 旧版 localStorage key（来自上游 Inspector 实现），用于一次性迁移。
-const LEGACY_KEYS = {
-  transportType: "lastTransportType",
-  connectionType: "lastConnectionType",
-  command: "lastCommand",
-  args: "lastArgs",
-  sseUrl: "lastSseUrl",
-  oauthClientId: "lastOauthClientId",
-  oauthClientSecret: "lastOauthClientSecret",
-  oauthScope: "lastOauthScope",
-  customHeaders: "lastCustomHeaders",
-  bearerToken: "lastBearerToken",
-  headerName: "lastHeaderName",
-} as const;
 
 const isTransportType = (v: unknown): v is TransportType =>
   v === "stdio" || v === "sse" || v === "streamable-http";
@@ -79,55 +57,6 @@ export const createDefaultProfile = (
   };
 };
 
-const readLegacyCustomHeaders = (): CustomHeaders | null => {
-  const saved = localStorage.getItem(LEGACY_KEYS.customHeaders);
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed as CustomHeaders;
-    } catch {
-      // 损坏的数据，走 legacy bearer token 兜底
-    }
-  }
-  const legacyToken = localStorage.getItem(LEGACY_KEYS.bearerToken) || "";
-  const legacyHeaderName = localStorage.getItem(LEGACY_KEYS.headerName) || "";
-  if (legacyToken) {
-    return migrateFromLegacyAuth(legacyToken, legacyHeaderName);
-  }
-  return null;
-};
-
-/** 从旧 localStorage key 构造一份默认 Profile（迁移路径） */
-export const migrateFromLegacy = (): ConnectionProfile => {
-  const profile = createDefaultProfile();
-
-  const transport = localStorage.getItem(LEGACY_KEYS.transportType);
-  if (isTransportType(transport)) profile.transportType = transport;
-
-  const connection = localStorage.getItem(LEGACY_KEYS.connectionType);
-  if (isConnectionType(connection)) profile.connectionType = connection;
-
-  const command = localStorage.getItem(LEGACY_KEYS.command);
-  if (command) profile.command = command;
-
-  const args = localStorage.getItem(LEGACY_KEYS.args);
-  if (args !== null) profile.args = args;
-
-  const sseUrl = localStorage.getItem(LEGACY_KEYS.sseUrl);
-  if (sseUrl) profile.sseUrl = sseUrl;
-
-  profile.oauth = {
-    clientId: localStorage.getItem(LEGACY_KEYS.oauthClientId) || "",
-    clientSecret: localStorage.getItem(LEGACY_KEYS.oauthClientSecret) || "",
-    scope: localStorage.getItem(LEGACY_KEYS.oauthScope) || "",
-  };
-
-  const customHeaders = readLegacyCustomHeaders();
-  if (customHeaders) profile.customHeaders = customHeaders;
-
-  return profile;
-};
-
 const isValidProfile = (v: unknown): v is ConnectionProfile => {
   if (!v || typeof v !== "object") return false;
   const p = v as Record<string, unknown>;
@@ -157,7 +86,7 @@ const isValidState = (v: unknown): v is ProfilesState => {
   return Object.values(profiles).every(isValidProfile);
 };
 
-/** 读取持久化状态；不存在/损坏时返回 null 由调用方决定走迁移或新建 */
+/** 读取持久化状态；不存在/损坏时返回 null 由调用方创建默认 Profile */
 export const readProfilesState = (): ProfilesState | null => {
   const raw = localStorage.getItem(PROFILES_STORAGE_KEY);
   if (!raw) return null;
@@ -173,24 +102,19 @@ export const readProfilesState = (): ProfilesState | null => {
 /**
  * 加载 Profile 状态：
  * 1. 已有 v1 数据 → 直接返回
- * 2. 未迁移过 → 从旧 last* key 构造默认 Profile 并写入 v1
- * 3. 全新用户 → 创建空白默认 Profile
+ * 2. 无 v1 数据或数据损坏 → 创建默认 Profile 并写入 v1
  */
 export const loadProfiles = (): ProfilesState => {
   const existing = readProfilesState();
   if (existing) return existing;
 
-  const migrated = localStorage.getItem(PROFILES_MIGRATION_FLAG) === "true";
-  const profile = migrated ? createDefaultProfile() : migrateFromLegacy();
+  const profile = createDefaultProfile();
   const state: ProfilesState = {
     activeId: profile.id,
     profiles: { [profile.id]: profile },
   };
 
   saveProfiles(state);
-  if (!migrated) {
-    localStorage.setItem(PROFILES_MIGRATION_FLAG, "true");
-  }
   return state;
 };
 

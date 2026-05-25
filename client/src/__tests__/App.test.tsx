@@ -135,7 +135,7 @@ describe("App", () => {
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
   });
 
-  it("旧版 last* localStorage 存在时，挂载后自动迁移到 v1 Profile", () => {
+  it("旧版 last* localStorage 存在时，挂载后仍使用当前项目默认 Profile", () => {
     localStorage.setItem("lastCommand", "python");
     localStorage.setItem("lastArgs", "-m srv");
     localStorage.setItem("lastSseUrl", "https://legacy.example.com/sse");
@@ -146,11 +146,9 @@ describe("App", () => {
     expect(raw).toBeTruthy();
     const state = JSON.parse(raw as string);
     const profile = state.profiles[state.activeId];
-    expect(profile.command).toBe("python");
-    expect(profile.args).toBe("-m srv");
-    expect(profile.sseUrl).toBe("https://legacy.example.com/sse");
-    expect(localStorage.getItem("mcpDebuggerProfiles_v1_migrated")).toBe(
-      "true",
-    );
+    expect(profile.command).toBe("mcp-server-everything");
+    expect(profile.args).toBe("");
+    expect(profile.sseUrl).toBe("http://localhost:3001/sse");
+    expect(localStorage.getItem("mcpDebuggerProfiles_v1_migrated")).toBeNull();
   });
 });
