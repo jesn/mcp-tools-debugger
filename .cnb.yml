@@ -1,5 +1,19 @@
 main:
   push:
+    - imports: https://cnb.cool/rich/tool-group/cnb-secret/-/blob/main/github/secret.yml
+      services:
+        - docker
+      stages:
+        - name: sync to github
+          image: tencentcom/git-sync
+          settings:
+            target_url: https://github.com/Jesn/mcp-tools-debugger.git
+            auth_type: https
+            username: ${GIT_USERNAME}
+            password: ${GIT_ACCESS_TOKEN}
+            git_email: ${GIT_EMAIL}
+            git_user: ${GIT_USER}
+
     - services:
         - name: docker
           options:
