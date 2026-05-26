@@ -58,6 +58,10 @@ import { InspectorConfig } from "../configurationTypes";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { CustomHeaders } from "../types/customHeaders";
 import { resolveRefsInMessage } from "@/utils/schemaUtils";
+import {
+  explainConnectionFailure,
+  type ConnectionDiagnostic,
+} from "../connectionDiagnostics";
 
 interface UseConnectionOptions {
   transportType: "stdio" | "sse" | "streamable-http";
@@ -113,6 +117,8 @@ export function useConnection({
   );
   const [serverImplementation, setServerImplementation] =
     useState<Implementation | null>(null);
+  const [connectionDiagnostic, setConnectionDiagnostic] =
+    useState<ConnectionDiagnostic | null>(null);
 
   useEffect(() => {
     if (!oauthClientId) {
@@ -238,16 +244,31 @@ export function useConnection({
     }
   };
 
+  const getProxyAuthHeaders = (): HeadersInit => {
+    const { token: proxyAuthToken, header: proxyAuthTokenHeader } =
+      getMCPProxyAuthToken(config);
+    const headers: HeadersInit = {};
+    if (proxyAuthToken) {
+      headers[proxyAuthTokenHeader] = `Bearer ${proxyAuthToken}`;
+    }
+    return headers;
+  };
+
+  const buildConnectionDiagnostic = (error: unknown): ConnectionDiagnostic =>
+    explainConnectionFailure({
+      error,
+      connectionType,
+      transportType,
+      proxyAuthTokenPresent: Boolean(getMCPProxyAuthToken(config).token),
+      serverUrl: sseUrl,
+    });
+
   const checkProxyHealth = async () => {
     try {
       const proxyHealthUrl = new URL(`${getMCPProxyAddress(config)}/health`);
-      const { token: proxyAuthToken, header: proxyAuthTokenHeader } =
-        getMCPProxyAuthToken(config);
-      const headers: HeadersInit = {};
-      if (proxyAuthToken) {
-        headers[proxyAuthTokenHeader] = `Bearer ${proxyAuthToken}`;
-      }
-      const proxyHealthResponse = await fetch(proxyHealthUrl, { headers });
+      const proxyHealthResponse = await fetch(proxyHealthUrl, {
+        headers: getProxyAuthHeaders(),
+      });
       const proxyHealth = await proxyHealthResponse.json();
       if (proxyHealth?.status !== "ok") {
         throw new Error("MCP Proxy Server is not healthy");
@@ -256,6 +277,29 @@ export function useConnection({
       console.error("Couldn't connect to MCP Proxy Server", e);
       throw e;
     }
+  };
+
+  const ensureProxyAuthentication = async (): Promise<boolean> => {
+    const proxyConfigUrl = new URL(`${getMCPProxyAddress(config)}/config`);
+    const response = await fetch(proxyConfigUrl, {
+      headers: getProxyAuthHeaders(),
+    });
+
+    if (response.status !== 401) {
+      return true;
+    }
+
+    setConnectionDiagnostic(
+      buildConnectionDiagnostic(new Error("HTTP 401: Unauthorized")),
+    );
+    setConnectionStatus("error");
+    toast({
+      title: "需要 Proxy Session Token",
+      description:
+        "请使用带 MCP_PROXY_AUTH_TOKEN 的调试器地址打开页面，或在 Configuration 中填写 proxy session token。",
+      variant: "destructive",
+    });
+    return false;
   };
 
   const isProxyAuthError = (error: unknown): boolean => {
@@ -323,6 +367,10 @@ export function useConnection({
   };
 
   const connect = async (_e?: unknown, retryCount: number = 0) => {
+    if (retryCount === 0) {
+      setConnectionDiagnostic(null);
+    }
+
     // 仅声明 tools 调试所需的最小客户端能力。
     const clientCapabilities = {
       capabilities: {},
@@ -337,7 +385,12 @@ export function useConnection({
     if (connectionType === "proxy") {
       try {
         await checkProxyHealth();
-      } catch {
+        const proxyAuthReady = await ensureProxyAuthentication();
+        if (!proxyAuthReady) {
+          return;
+        }
+      } catch (error) {
+        setConnectionDiagnostic(buildConnectionDiagnostic(error));
         setConnectionStatus("error-connecting-to-proxy");
         return;
       }
@@ -493,12 +546,7 @@ export function useConnection({
       } else {
         // Proxy connection (default behavior)
         // Add proxy authentication headers for proxy connections only
-        const { token: proxyAuthToken, header: proxyAuthTokenHeader } =
-          getMCPProxyAuthToken(config);
-        const proxyHeaders: HeadersInit = {};
-        if (proxyAuthToken) {
-          proxyHeaders[proxyAuthTokenHeader] = `Bearer ${proxyAuthToken}`;
-        }
+        const proxyHeaders = getProxyAuthHeaders();
 
         let mcpProxyServerUrl;
         switch (transportType) {
@@ -661,10 +709,11 @@ export function useConnection({
 
         // Check if it's a proxy auth error
         if (isProxyAuthError(error)) {
+          const diagnostic = buildConnectionDiagnostic(error);
+          setConnectionDiagnostic(diagnostic);
           toast({
-            title: "Proxy Authentication Required",
-            description:
-              "Please enter the session token from the proxy server console in the Configuration settings.",
+            title: diagnostic.title,
+            description: diagnostic.suggestion,
             variant: "destructive",
           });
           setConnectionStatus("error");
@@ -700,6 +749,7 @@ export function useConnection({
       }
 
       setMcpClient(client);
+      setConnectionDiagnostic(null);
       setConnectionStatus("connected");
     } catch (e) {
       if (
@@ -713,9 +763,11 @@ export function useConnection({
           variant: "destructive",
         });
       } else {
+        const diagnostic = buildConnectionDiagnostic(e);
+        setConnectionDiagnostic(diagnostic);
         toast({
-          title: "Connection error",
-          description: `Connection failed: "${e}"`,
+          title: diagnostic.title,
+          description: diagnostic.suggestion,
           variant: "destructive",
         });
       }
@@ -735,6 +787,7 @@ export function useConnection({
     setMcpClient(null);
     setClientTransport(null);
     setConnectionStatus("disconnected");
+    setConnectionDiagnostic(null);
     setServerCapabilities(null);
     setMcpSessionId(null);
     setMcpProtocolVersion(null);
@@ -744,6 +797,7 @@ export function useConnection({
     connectionStatus,
     serverCapabilities,
     serverImplementation,
+    connectionDiagnostic,
     mcpClient,
     requestHistory,
     makeRequest,

@@ -35,6 +35,7 @@ export type JsonSchemaType = {
   description?: string;
   required?: string[];
   default?: JsonValue;
+  examples?: JsonValue[];
   properties?: Record<string, JsonSchemaType>;
   items?: JsonSchemaType;
   // Array validation constraints

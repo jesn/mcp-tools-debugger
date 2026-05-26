@@ -541,14 +541,25 @@ describe("useConnection", () => {
         credentials: "include",
       });
 
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-      expect(
-        (global.fetch as jest.Mock).mock.calls[0][1].headers,
-      ).toHaveProperty("X-MCP-Proxy-Auth", "Bearer test-proxy-token");
-      expect((global.fetch as jest.Mock).mock.calls[1][0]).toBe(testUrl);
-      expect(
-        (global.fetch as jest.Mock).mock.calls[1][1].headers,
-      ).toHaveProperty("X-MCP-Proxy-Auth", "Bearer test-proxy-token");
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+      const [healthCheckCall, configCheckCall, transportFetchCall] = (
+        global.fetch as jest.Mock
+      ).mock.calls;
+      expect(healthCheckCall[0].pathname).toBe("/health");
+      expect(healthCheckCall[1].headers).toHaveProperty(
+        "X-MCP-Proxy-Auth",
+        "Bearer test-proxy-token",
+      );
+      expect(configCheckCall[0].pathname).toBe("/config");
+      expect(configCheckCall[1].headers).toHaveProperty(
+        "X-MCP-Proxy-Auth",
+        "Bearer test-proxy-token",
+      );
+      expect(transportFetchCall[0]).toBe(testUrl);
+      expect(transportFetchCall[1].headers).toHaveProperty(
+        "X-MCP-Proxy-Auth",
+        "Bearer test-proxy-token",
+      );
     });
 
     test("does NOT send X-MCP-Proxy-Auth header when proxy auth token is configured for direct connectionType", async () => {
@@ -692,6 +703,96 @@ describe("useConnection", () => {
       expect(healthCheckCall[1].headers).toHaveProperty(
         "X-MCP-Proxy-Auth",
         "Bearer test-proxy-token",
+      );
+    });
+
+    test("stops before MCP OAuth when proxy requires auth and token is missing", async () => {
+      const fetchMock = global.fetch as jest.Mock;
+      fetchMock.mockClear();
+      fetchMock
+        .mockResolvedValueOnce({
+          json: () => Promise.resolve({ status: "ok" }),
+          headers: {
+            get: jest.fn().mockReturnValue(null),
+          },
+        })
+        .mockResolvedValueOnce({
+          status: 401,
+          json: () =>
+            Promise.resolve({
+              error: "Unauthorized",
+              message: "Authentication required.",
+            }),
+          headers: {
+            get: jest.fn().mockReturnValue(null),
+          },
+        });
+
+      const { result } = renderHook(() =>
+        useConnection({
+          ...defaultProps,
+          connectionType: "proxy",
+          config: {
+            ...DEFAULT_INSPECTOR_CONFIG,
+            MCP_PROXY_AUTH_TOKEN: {
+              ...DEFAULT_INSPECTOR_CONFIG.MCP_PROXY_AUTH_TOKEN,
+              value: "",
+            },
+          },
+        }),
+      );
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      expect(mockSSETransport.url).toBeUndefined();
+      expect(mockClient.connect).not.toHaveBeenCalled();
+      expect(mockAuth).not.toHaveBeenCalled();
+      expect(result.current.connectionStatus).toBe("error");
+      expect(result.current.connectionDiagnostic).toEqual(
+        expect.objectContaining({
+          code: "proxy-unauthorized",
+          title: "Proxy Session Token 无效",
+        }),
+      );
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "需要 Proxy Session Token",
+        }),
+      );
+    });
+
+    test("records a diagnostic when direct browser connection is blocked by CORS", async () => {
+      mockClient.connect.mockRejectedValueOnce(
+        new Error(
+          "Access to fetch at 'https://example.com/sse' from origin 'http://localhost:6274' has been blocked by CORS policy",
+        ),
+      );
+
+      const { result } = renderHook(() =>
+        useConnection({
+          ...defaultProps,
+          connectionType: "direct",
+          sseUrl: "https://example.com/sse",
+        }),
+      );
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      expect(result.current.connectionStatus).toBe("error");
+      expect(result.current.connectionDiagnostic).toEqual(
+        expect.objectContaining({
+          code: "cors-blocked",
+          title: "浏览器 CORS 拦截",
+        }),
+      );
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "浏览器 CORS 拦截",
+        }),
       );
     });
 

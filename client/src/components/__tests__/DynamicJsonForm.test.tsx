@@ -618,6 +618,32 @@ describe("DynamicJsonForm Object Fields", () => {
       expect(nameInput).toHaveProperty("required", true);
       expect(optionalInput).toHaveProperty("required", false);
     });
+
+    it("should show an explicit required badge for required fields", () => {
+      const schema: JsonSchemaType = {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            title: "Name",
+          },
+          optional: {
+            type: "string",
+            title: "Optional",
+          },
+        },
+        required: ["name"],
+      };
+
+      render(
+        <DynamicJsonForm schema={schema} value={{}} onChange={jest.fn()} />,
+      );
+
+      const requiredBadges = screen.getAllByText("必填");
+
+      expect(requiredBadges).toHaveLength(1);
+      expect(requiredBadges[0].closest("label")).toHaveTextContent("Name");
+    });
   });
 });
 
@@ -916,6 +942,77 @@ describe("DynamicJsonForm Validation Functionality", () => {
 
       expect(validateButton.getAttribute("data-validation-valid")).toBe("true");
       expect(validateButton.getAttribute("data-validation-error")).toBe("");
+    });
+
+    it("should return a field-specific schema error for invalid JSON content", () => {
+      const TestComponent = () => {
+        const formRef = useRef<DynamicJsonFormRef>(null);
+        const schema: JsonSchemaType = {
+          type: "object",
+          required: ["user"],
+          properties: {
+            user: {
+              type: "object",
+              required: ["name"],
+              properties: {
+                name: { type: "string", title: "Name" },
+              },
+            },
+          },
+        };
+
+        return (
+          <div>
+            <DynamicJsonForm
+              ref={formRef}
+              schema={schema}
+              value={{ user: { name: "Ada" } }}
+              onChange={jest.fn()}
+            />
+            <button
+              onClick={() => {
+                const result = formRef.current?.validateJson();
+                const button = document.querySelector(
+                  '[data-testid="validate-button"]',
+                ) as HTMLElement;
+                if (button && result) {
+                  button.setAttribute(
+                    "data-validation-valid",
+                    result.isValid.toString(),
+                  );
+                  button.setAttribute(
+                    "data-validation-error",
+                    result.error || "",
+                  );
+                }
+              }}
+              data-testid="validate-button"
+            >
+              Validate
+            </button>
+          </div>
+        );
+      };
+
+      render(<TestComponent />);
+
+      fireEvent.click(screen.getByRole("button", { name: /switch to json/i }));
+      fireEvent.change(screen.getByRole("textbox"), {
+        target: { value: '{ "user": {} }' },
+      });
+      fireEvent.click(screen.getByTestId("validate-button"));
+
+      expect(
+        screen
+          .getByTestId("validate-button")
+          .getAttribute("data-validation-valid"),
+      ).toBe("false");
+      expect(
+        screen
+          .getByTestId("validate-button")
+          .getAttribute("data-validation-error"),
+      ).toContain("user.name");
+      expect(screen.getByText(/user.name/)).toBeInTheDocument();
     });
 
     it("should set error state when validation fails", async () => {

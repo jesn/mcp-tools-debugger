@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import JsonEditor from "./JsonEditor";
 import { updateValueAtPath } from "@/utils/jsonUtils";
-import { generateDefaultValue } from "@/utils/schemaUtils";
+import { generateDefaultValue, validateJsonValue } from "@/utils/schemaUtils";
 import { copyTextToClipboard } from "@/utils/clipboard";
 import type {
   JsonValue,
@@ -251,6 +251,12 @@ const DynamicJsonForm = forwardRef<DynamicJsonFormRef, DynamicJsonFormProps>(
         const jsonStr = rawJsonValue?.trim();
         if (!jsonStr) return { isValid: true, error: null };
         const parsed = JSON.parse(jsonStr);
+        const validation = validateJsonValue(schema, parsed);
+        if (!validation.isValid) {
+          const errorMessage = validation.error ?? "JSON 不符合 schema";
+          setJsonError(errorMessage);
+          return { isValid: false, error: errorMessage };
+        }
         // Clear any pending debounced update and immediately update parent
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
@@ -578,9 +584,14 @@ const DynamicJsonForm = forwardRef<DynamicJsonFormRef, DynamicJsonFormProps>(
               {Object.entries(propSchema.properties).map(([key, subSchema]) => (
                 <div key={key}>
                   <label className="block text-sm font-medium mb-1">
-                    {(subSchema as JsonSchemaType).title ?? key}
+                    <span>{(subSchema as JsonSchemaType).title ?? key}</span>
                     {propSchema.required?.includes(key) && (
-                      <span className="text-red-500 ml-1">*</span>
+                      <>
+                        <span className="text-red-500 ml-1">*</span>
+                        <span className="ml-2 rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[11px] font-medium text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+                          必填
+                        </span>
+                      </>
                     )}
                   </label>
                   {renderFormFields(

@@ -41,16 +41,39 @@ docker run -d \
   -p 6274:6274 \
   -p 6277:6277 \
   -e HOST=0.0.0.0 \
+  -e MCP_PROXY_AUTH_TOKEN=<随机长 token> \
   docker.cnb.cool/rich/public/mcp-tools-debugger:latest
 ```
 
 启动后访问：
 
 ```text
-http://<服务器 IP>:6274
+http://<服务器 IP>:6274/?MCP_PROXY_AUTH_TOKEN=<随机长 token>
 ```
 
 其中 `6274` 是 Web UI 端口，`6277` 是 MCP Proxy 端口。Windows 环境也可以直接使用仓库中的 `start-mcp-debugger.bat` 启动同一个镜像。
+
+### Proxy 鉴权
+
+MCP Proxy 默认开启 session token 鉴权。浏览器页面调用 `6277` 端口时必须带上 `MCP_PROXY_AUTH_TOKEN`，否则 proxy 会返回 `401 Unauthorized`。如果只打开 `http://<服务器 IP>:6274`，页面能加载，但连接 MCP Server 时会因为缺少 proxy token 失败。
+
+推荐在 Docker 启动时显式设置固定 token，并使用带 query 参数的地址打开页面：
+
+```bash
+docker run -d \
+  --name mcp-tools-debugger \
+  -p 6274:6274 \
+  -p 6277:6277 \
+  -e HOST=0.0.0.0 \
+  -e MCP_PROXY_AUTH_TOKEN=<随机长 token> \
+  docker.cnb.cool/rich/public/mcp-tools-debugger:latest
+```
+
+```text
+http://<服务器 IP>:6274/?MCP_PROXY_AUTH_TOKEN=<随机长 token>
+```
+
+如果未设置 `MCP_PROXY_AUTH_TOKEN`，服务会在启动时随机生成 token，可以通过 `docker logs mcp-tools-debugger` 查看启动日志中的 `Session token`，再把它填到页面 `Configuration` 里的 `Proxy Session Token`。
 
 ### Origin 校验
 

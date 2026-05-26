@@ -6,6 +6,7 @@ import {
   getToolOutputValidator,
   validateToolOutput,
   hasOutputSchema,
+  validateJsonValue,
 } from "../schemaUtils";
 import type { JsonSchemaType } from "../jsonUtils";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
@@ -168,6 +169,51 @@ describe("generateDefaultValue", () => {
     expect(generateDefaultValue({ type: "string", default: "test" })).toBe(
       "test",
     );
+  });
+
+  test("uses the first example when no explicit default is provided", () => {
+    expect(
+      generateDefaultValue({
+        type: "string",
+        examples: ["example value"],
+      }),
+    ).toBe("example value");
+  });
+
+  test("includes optional properties that declare examples in root object defaults", () => {
+    const schema: JsonSchemaType = {
+      type: "object",
+      properties: {
+        query: { type: "string", examples: ["hello"] },
+        limit: { type: "integer" },
+      },
+    };
+
+    expect(generateDefaultValue(schema)).toEqual({ query: "hello" });
+  });
+});
+
+describe("validateJsonValue", () => {
+  test("returns a field-specific error for missing required properties", () => {
+    const schema: JsonSchemaType = {
+      type: "object",
+      required: ["user"],
+      properties: {
+        user: {
+          type: "object",
+          required: ["name"],
+          properties: {
+            name: { type: "string" },
+          },
+        },
+      },
+    };
+
+    const result = validateJsonValue(schema, { user: {} });
+
+    expect(result.isValid).toBe(false);
+    expect(result.error).toContain("user.name");
+    expect(result.error).toContain("必填");
   });
 });
 

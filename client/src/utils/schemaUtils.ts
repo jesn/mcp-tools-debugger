@@ -70,6 +70,62 @@ export function validateToolOutput(
   return { isValid: true };
 }
 
+function formatAjvDataPath(path: string | undefined): string {
+  if (!path) return "";
+  return path
+    .replace(/^\./, "")
+    .replace(/\[(\d+)\]/g, ".$1")
+    .replace(/\['([^']+)'\]/g, ".$1");
+}
+
+function formatSchemaValidationError(
+  error: NonNullable<ValidateFunction["errors"]>[number],
+): string {
+  const basePath = formatAjvDataPath(error.dataPath);
+
+  if (error.keyword === "required") {
+    const missingProperty =
+      "missingProperty" in error.params
+        ? error.params.missingProperty
+        : undefined;
+    const fieldPath = [basePath, missingProperty]
+      .filter((part): part is string => typeof part === "string" && part !== "")
+      .join(".");
+    return `字段 ${fieldPath || String(missingProperty)} 必填`;
+  }
+
+  return `字段 ${basePath || "$"} ${error.message ?? "不符合 schema"}`;
+}
+
+/**
+ * Validates arbitrary JSON input against a schema and returns a field-focused error.
+ */
+export function validateJsonValue(
+  schema: JsonSchemaType,
+  value: JsonValue,
+): { isValid: boolean; error?: string } {
+  let validator: ValidateFunction;
+  try {
+    validator = ajv.compile(schema);
+  } catch (error) {
+    return {
+      isValid: false,
+      error: `Schema 无法编译：${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+
+  if (validator(value)) {
+    return { isValid: true };
+  }
+
+  return {
+    isValid: false,
+    error: validator.errors?.[0]
+      ? formatSchemaValidationError(validator.errors[0])
+      : "JSON 不符合 schema",
+  };
+}
+
 /**
  * Checks if a tool has an output schema
  * @param toolName Name of the tool
@@ -93,6 +149,10 @@ export function generateDefaultValue(
 ): JsonValue {
   if ("default" in schema && schema.default !== undefined) {
     return schema.default;
+  }
+
+  if (schema.examples?.[0] !== undefined) {
+    return schema.examples[0];
   }
 
   // Check if this property is required in the parent schema
@@ -122,7 +182,14 @@ export function generateDefaultValue(
       Object.entries(schema.properties).forEach(([key, prop]) => {
         const hasExplicitDefault =
           "default" in prop && (prop as JsonSchemaType).default !== undefined;
-        if (isPropertyRequired(key, schema) || hasExplicitDefault) {
+        const hasExample =
+          Array.isArray((prop as JsonSchemaType).examples) &&
+          (prop as JsonSchemaType).examples?.[0] !== undefined;
+        if (
+          isPropertyRequired(key, schema) ||
+          hasExplicitDefault ||
+          hasExample
+        ) {
           const value = generateDefaultValue(prop, key, schema);
           if (value !== undefined) {
             obj[key] = value;

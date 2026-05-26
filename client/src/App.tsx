@@ -112,6 +112,7 @@ const App = () => {
   // ---- MCP Connection ----
   const {
     connectionStatus,
+    connectionDiagnostic,
     serverCapabilities,
     serverImplementation,
     mcpClient,
@@ -461,6 +462,7 @@ const App = () => {
               deleteProfile={profilesApi.deleteProfile}
               cloneActiveProfile={profilesApi.cloneActiveProfile}
               connectionStatus={connectionStatus}
+              connectionDiagnostic={connectionDiagnostic}
               onConnect={connectMcpServer}
               onDisconnect={handleManualDisconnect}
               logLevel={logLevel}

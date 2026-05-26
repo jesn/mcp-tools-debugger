@@ -51,6 +51,7 @@ import type {
 } from "@/lib/profiles/types";
 import ProfileSwitcher from "./ProfileSwitcher";
 import { copyTextToClipboard } from "@/utils/clipboard";
+import type { ConnectionDiagnostic } from "@/lib/connectionDiagnostics";
 
 interface SidebarProps {
   connectionStatus: ConnectionStatus;
@@ -72,6 +73,7 @@ interface SidebarProps {
   loggingSupported: boolean;
   config: InspectorConfig;
   setConfig: (config: InspectorConfig) => void;
+  connectionDiagnostic?: ConnectionDiagnostic | null;
   serverImplementation?:
     | (WithIcons & { name?: string; version?: string; websiteUrl?: string })
     | null;
@@ -94,6 +96,7 @@ const Sidebar = ({
   loggingSupported,
   config,
   setConfig,
+  connectionDiagnostic,
   serverImplementation,
 }: SidebarProps) => {
   // 从 profile 中解构出局部别名，业务代码（300+ 行）保持原貌不变，
@@ -813,6 +816,19 @@ const Sidebar = ({
                 })()}
               </span>
             </div>
+
+            {connectionStatus !== "connected" && connectionDiagnostic && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-950 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-100">
+                <div className="flex items-start gap-2 font-medium">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                  <span>{connectionDiagnostic.title}</span>
+                </div>
+                <p className="mt-2 leading-5">{connectionDiagnostic.reason}</p>
+                <p className="mt-2 leading-5">
+                  {connectionDiagnostic.suggestion}
+                </p>
+              </div>
+            )}
 
             {connectionStatus === "connected" &&
               serverImplementation &&

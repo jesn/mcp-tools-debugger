@@ -10,6 +10,7 @@ import type {
   ConnectionProfilePatch,
   ProfilesState,
 } from "@/lib/profiles/types";
+import type { ConnectionDiagnostic } from "@/lib/connectionDiagnostics";
 
 // Mock theme hook
 jest.mock("../../lib/hooks/useTheme", () => ({
@@ -76,6 +77,7 @@ describe("Sidebar", () => {
     serverImplementation?: React.ComponentProps<
       typeof Sidebar
     >["serverImplementation"];
+    connectionDiagnostic?: ConnectionDiagnostic | null;
   };
 
   const buildSidebarElement = (props: SidebarTestProps) => {
@@ -145,6 +147,7 @@ describe("Sidebar", () => {
           config={merged.config}
           setConfig={merged.setConfig}
           serverImplementation={props.serverImplementation}
+          connectionDiagnostic={props.connectionDiagnostic}
         />
       </TooltipProvider>
     );
@@ -1175,6 +1178,26 @@ describe("Sidebar", () => {
       expect(
         screen.queryByText("Potentially malicious websiteURL field"),
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Connection diagnostics", () => {
+    it("should render detailed Chinese reason and suggestion for connection failures", () => {
+      renderSidebar({
+        connectionStatus: "error",
+        connectionDiagnostic: {
+          code: "proxy-unauthorized",
+          title: "Proxy Session Token 无效",
+          reason:
+            "Proxy 返回 401，通常表示缺少 session token 或 token 不正确。",
+          suggestion:
+            "请使用带 MCP_PROXY_AUTH_TOKEN 的调试器地址打开页面，或在 Configuration 中填写正确 token。",
+        },
+      });
+
+      expect(screen.getByText("Proxy Session Token 无效")).toBeInTheDocument();
+      expect(screen.getByText(/Proxy 返回 401/)).toBeInTheDocument();
+      expect(screen.getByText(/MCP_PROXY_AUTH_TOKEN/)).toBeInTheDocument();
     });
   });
 });
