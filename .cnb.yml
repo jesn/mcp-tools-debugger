@@ -85,7 +85,7 @@ main:
     - name: desktop linux arm64
       allowFailure: true
       runner:
-        tags: cnb:arch:arm64
+        tags: cnb:arch:arm64:v8
         cpus: 8
       docker:
         image: node:22-bookworm
@@ -174,7 +174,7 @@ main:
     - name: desktop windows arm64
       allowFailure: true
       runner:
-        tags: cnb:arch:arm64
+        tags: cnb:arch:arm64:v8
         cpus: 8
       docker:
         image: node:22-bookworm
@@ -216,101 +216,8 @@ main:
             attachments:
               - desktop-artifacts/*
 
-    - name: desktop macos x64
-      allowFailure: true
-      runner:
-        tags: cnb:arch:amd64
-        cpus: 8
-        os: macos
-      docker:
-        image: node:22-bookworm
-        volumes:
-          - /root/.npm:copy-on-write
-          - /root/.cache/electron:copy-on-write
-          - /root/.cache/electron-builder:copy-on-write
-      env:
-        ELECTRON_CACHE: /root/.cache/electron
-        ELECTRON_BUILDER_CACHE: /root/.cache/electron-builder
-        ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
-        ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
-      stages:
-        - name: install dependencies
-          script: |
-            npm ci
-            # dmg-license has os:darwin restriction, fetch manually for Linux DMG builds
-            DG_VER="1.0.11"
-            curl -sSL "https://registry.npmjs.org/dmg-license/-/dmg-license-${DG_VER}.tgz" -o /tmp/dmg-license.tgz
-            mkdir -p node_modules/dmg-license
-            tar --strip-components=1 -xzf /tmp/dmg-license.tgz -C node_modules/dmg-license
-            rm -f /tmp/dmg-license.tgz
-
-        - name: build desktop runtime
-          script: npm run desktop:build
-
-        - name: package macos x64 desktop
-          script: cd desktop && npx electron-builder --mac dmg --x64 --publish never
-
-        - name: collect desktop artifacts
-          script: |
-            mkdir -p desktop-artifacts
-            cp desktop/dist/*.dmg desktop-artifacts/
-            cp desktop/dist/*.blockmap desktop-artifacts/ 2>/dev/null || true
-            cp desktop/dist/latest-mac.yml desktop-artifacts/ 2>/dev/null || true
-            ls -lh desktop-artifacts
-
-        - name: upload desktop artifacts
-          image: cnbcool/attachments:latest
-          settings:
-            attachments:
-              - desktop-artifacts/*
-
-    - name: desktop macos arm64
-      allowFailure: true
-      runner:
-        tags: cnb:arch:arm64
-        cpus: 8
-        os: macos
-      docker:
-        image: node:22-bookworm
-        volumes:
-          - /root/.npm:copy-on-write
-          - /root/.cache/electron:copy-on-write
-          - /root/.cache/electron-builder:copy-on-write
-      env:
-        ELECTRON_CACHE: /root/.cache/electron
-        ELECTRON_BUILDER_CACHE: /root/.cache/electron-builder
-        ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
-        ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
-      stages:
-        - name: install dependencies
-          script: |
-            npm ci
-            # dmg-license has os:darwin restriction, fetch manually for Linux DMG builds
-            DG_VER="1.0.11"
-            curl -sSL "https://registry.npmjs.org/dmg-license/-/dmg-license-${DG_VER}.tgz" -o /tmp/dmg-license.tgz
-            mkdir -p node_modules/dmg-license
-            tar --strip-components=1 -xzf /tmp/dmg-license.tgz -C node_modules/dmg-license
-            rm -f /tmp/dmg-license.tgz
-
-        - name: build desktop runtime
-          script: npm run desktop:build
-
-        - name: package macos arm64 desktop
-          script: cd desktop && npx electron-builder --mac dmg --arm64 --publish never
-
-        - name: collect desktop artifacts
-          script: |
-            mkdir -p desktop-artifacts
-            cp desktop/dist/*.dmg desktop-artifacts/
-            cp desktop/dist/*.blockmap desktop-artifacts/ 2>/dev/null || true
-            cp desktop/dist/latest-mac-arm64.yml desktop-artifacts/ 2>/dev/null || true
-            ls -lh desktop-artifacts
-
-        - name: upload desktop artifacts
-          image: cnbcool/attachments:latest
-          settings:
-            attachments:
-              - desktop-artifacts/*
+    # macOS DMG 需要真实 macOS runner；CNB 公共 push 构建实际运行在 Linux 容器中。
+    # 在可用 macOS runner 接入前，普通 push 验证矩阵暂不构建 macOS DMG。
 
   # Tag 推送：构建桌面端 + 创建 CNB Release 并上传制品
   # 策略：linux x64 创建 Release，其他 job 成功后通过 CNB API 追加制品
@@ -399,7 +306,7 @@ main:
 
     - name: desktop linux arm64
       runner:
-        tags: cnb:arch:arm64
+        tags: cnb:arch:arm64:v8
         cpus: 8
       docker:
         image: node:22-bookworm
@@ -516,7 +423,7 @@ main:
 
     - name: desktop windows arm64
       runner:
-        tags: cnb:arch:arm64
+        tags: cnb:arch:arm64:v8
         cpus: 8
       docker:
         image: node:22-bookworm
@@ -637,7 +544,7 @@ main:
 
     - name: desktop macos arm64
       runner:
-        tags: cnb:arch:arm64
+        tags: cnb:arch:arm64:v8
         cpus: 8
         os: macos
       docker:
