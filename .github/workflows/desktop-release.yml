@@ -1,0 +1,183 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build-desktop:
+    name: Build desktop ${{ matrix.asset_name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - asset_name: linux-x64
+            runner: ubuntu-22.04
+            platform: linux
+            arch: x64
+            targets: AppImage
+          - asset_name: linux-arm64
+            runner: ubuntu-22.04-arm
+            platform: linux
+            arch: arm64
+            targets: AppImage
+          - asset_name: windows-x64
+            runner: windows-2022
+            platform: win
+            arch: x64
+            targets: nsis zip
+          - asset_name: windows-arm64
+            runner: windows-2022
+            platform: win
+            arch: arm64
+            targets: nsis zip
+          - asset_name: macos-x64
+            runner: macos-13
+            platform: mac
+            arch: x64
+            targets: dmg zip
+          - asset_name: macos-arm64
+            runner: macos-14
+            platform: mac
+            arch: arm64
+            targets: dmg zip
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build desktop runtime
+        run: npm run desktop:build
+
+      - name: Build desktop package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd desktop
+          npx electron-builder --${{ matrix.platform }} ${{ matrix.targets }} --${{ matrix.arch }} --publish never
+
+      - name: Collect release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "release-assets/${{ matrix.asset_name }}"
+          shopt -s nullglob
+          files=(desktop/dist/*.AppImage desktop/dist/*.dmg desktop/dist/*.exe desktop/dist/*.zip desktop/dist/*.blockmap)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No desktop release assets were produced."
+            exit 1
+          fi
+          cp "${files[@]}" "release-assets/${{ matrix.asset_name }}/"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.asset_name }}
+          path: release-assets/${{ matrix.asset_name }}/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-22.04
+    needs: build-desktop
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download desktop artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Build release notes from tag commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          git fetch --force --tags
+
+          previous_tag="$(git tag --sort=-creatordate --merged "$tag" | awk -v tag="$tag" '$0 != tag { print; exit }')"
+          if [ -n "$previous_tag" ]; then
+            range="$previous_tag..$tag"
+            range_label="\`$previous_tag..$tag\`"
+          else
+            range="$tag"
+            range_label="initial release through \`$tag\`"
+          fi
+
+          {
+            echo "# MCP Tools Debugger $tag"
+            echo
+            echo "## Desktop artifacts"
+            echo
+            echo "- macOS x64 / arm64"
+            echo "- Windows x64 / arm64"
+            echo "- Linux x64 / arm64"
+            echo
+            echo "## Git commits"
+            echo
+            echo "Range: $range_label"
+            echo
+          } > release-notes.md
+
+          commits="$(git log "$range" --reverse --pretty=format:'- `%h` %s (%an)' --no-decorate)"
+          if [ -n "$commits" ]; then
+            printf "%s\n" "$commits" >> release-notes.md
+          else
+            echo "- No commits found." >> release-notes.md
+          fi
+
+      - name: Create or update GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --title "$tag" --notes-file release-notes.md
+          else
+            gh release create "$tag" --title "$tag" --notes-file release-notes.md --verify-tag
+          fi
+
+      - name: Upload assets to GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          mapfile -t files < <(find release-assets -type f | sort)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No downloaded desktop artifacts found."
+            exit 1
+          fi
+          gh release upload "$tag" "${files[@]}" --clobber

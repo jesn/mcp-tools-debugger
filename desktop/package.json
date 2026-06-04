@@ -15,6 +15,7 @@
   "build": {
     "appId": "cool.cnb.rich.mcp-tools-debugger",
     "productName": "MCP Tools Debugger",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "dist"
     },
