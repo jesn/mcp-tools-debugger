@@ -216,50 +216,6 @@ main:
             attachments:
               - desktop-artifacts/*
 
-    - name: desktop windows arm64
-      runner:
-        tags: cnb:arch:arm64
-        cpus: 8
-      docker:
-        image: node:22-bookworm
-        volumes:
-          - /root/.npm:copy-on-write
-          - /root/.cache/electron:copy-on-write
-          - /root/.cache/electron-builder:copy-on-write
-      env:
-        ELECTRON_CACHE: /root/.cache/electron
-        ELECTRON_BUILDER_CACHE: /root/.cache/electron-builder
-        ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
-      stages:
-        - name: install system deps
-          script: |
-            dpkg --add-architecture arm64
-            apt-get update
-            apt-get install -y --no-install-recommends wine wine32 wine64
-
-        - name: install dependencies
-          script: npm ci
-
-        - name: build desktop runtime
-          script: npm run desktop:build
-
-        - name: package windows arm64 desktop
-          script: cd desktop && npx electron-builder --win nsis --arm64 --publish never
-
-        - name: collect desktop artifacts
-          script: |
-            mkdir -p desktop-artifacts
-            cp desktop/dist/*.exe desktop-artifacts/
-            cp desktop/dist/*.blockmap desktop-artifacts/ 2>/dev/null || true
-            cp desktop/dist/latest.yml desktop-artifacts/ 2>/dev/null || true
-            ls -lh desktop-artifacts
-
-        - name: upload to release
-          image: cnbcool/attachments:latest
-          settings:
-            attachments:
-              - desktop-artifacts/*
-
     - name: desktop macos x64
       allowFailure: true
       runner:
@@ -279,7 +235,9 @@ main:
         ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
       stages:
         - name: install dependencies
-          script: npm ci
+          script: |
+            npm ci
+            npm install dmg-license@^1.0.11 --no-save
 
         - name: build desktop runtime
           script: npm run desktop:build
@@ -320,7 +278,9 @@ main:
         ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
       stages:
         - name: install dependencies
-          script: npm ci
+          script: |
+            npm ci
+            npm install dmg-license@^1.0.11 --no-save
 
         - name: build desktop runtime
           script: npm run desktop:build
@@ -621,7 +581,9 @@ main:
         ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
       stages:
         - name: install dependencies
-          script: npm ci
+          script: |
+            npm ci
+            npm install dmg-license@^1.0.11 --no-save
 
         - name: build desktop runtime
           script: npm run desktop:build
@@ -676,7 +638,9 @@ main:
         ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
       stages:
         - name: install dependencies
-          script: npm ci
+          script: |
+            npm ci
+            npm install dmg-license@^1.0.11 --no-save
 
         - name: build desktop runtime
           script: npm run desktop:build
