@@ -237,7 +237,12 @@ main:
         - name: install dependencies
           script: |
             npm ci
-            npm install dmg-license@^1.0.11 --no-save
+            # dmg-license has os:darwin restriction, fetch manually for Linux DMG builds
+            DG_VER="1.0.11"
+            curl -sSL "https://registry.npmjs.org/dmg-license/-/dmg-license-${DG_VER}.tgz" -o /tmp/dmg-license.tgz
+            mkdir -p node_modules/dmg-license
+            tar --strip-components=1 -xzf /tmp/dmg-license.tgz -C node_modules/dmg-license
+            rm -f /tmp/dmg-license.tgz
 
         - name: build desktop runtime
           script: npm run desktop:build
@@ -280,7 +285,12 @@ main:
         - name: install dependencies
           script: |
             npm ci
-            npm install dmg-license@^1.0.11 --no-save
+            # dmg-license has os:darwin restriction, fetch manually for Linux DMG builds
+            DG_VER="1.0.11"
+            curl -sSL "https://registry.npmjs.org/dmg-license/-/dmg-license-${DG_VER}.tgz" -o /tmp/dmg-license.tgz
+            mkdir -p node_modules/dmg-license
+            tar --strip-components=1 -xzf /tmp/dmg-license.tgz -C node_modules/dmg-license
+            rm -f /tmp/dmg-license.tgz
 
         - name: build desktop runtime
           script: npm run desktop:build
@@ -583,7 +593,12 @@ main:
         - name: install dependencies
           script: |
             npm ci
-            npm install dmg-license@^1.0.11 --no-save
+            # dmg-license has os:darwin restriction, fetch manually for Linux DMG builds
+            DG_VER="1.0.11"
+            curl -sSL "https://registry.npmjs.org/dmg-license/-/dmg-license-${DG_VER}.tgz" -o /tmp/dmg-license.tgz
+            mkdir -p node_modules/dmg-license
+            tar --strip-components=1 -xzf /tmp/dmg-license.tgz -C node_modules/dmg-license
+            rm -f /tmp/dmg-license.tgz
 
         - name: build desktop runtime
           script: npm run desktop:build
@@ -640,7 +655,12 @@ main:
         - name: install dependencies
           script: |
             npm ci
-            npm install dmg-license@^1.0.11 --no-save
+            # dmg-license has os:darwin restriction, fetch manually for Linux DMG builds
+            DG_VER="1.0.11"
+            curl -sSL "https://registry.npmjs.org/dmg-license/-/dmg-license-${DG_VER}.tgz" -o /tmp/dmg-license.tgz
+            mkdir -p node_modules/dmg-license
+            tar --strip-components=1 -xzf /tmp/dmg-license.tgz -C node_modules/dmg-license
+            rm -f /tmp/dmg-license.tgz
 
         - name: build desktop runtime
           script: npm run desktop:build
