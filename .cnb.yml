@@ -82,6 +82,50 @@ main:
             attachments:
               - desktop-artifacts/*
 
+    - name: desktop linux arm64
+      allowFailure: true
+      runner:
+        tags: cnb:arch:arm64
+        cpus: 8
+      docker:
+        image: node:22-bookworm
+        volumes:
+          - /root/.npm:copy-on-write
+          - /root/.cache/electron:copy-on-write
+          - /root/.cache/electron-builder:copy-on-write
+      env:
+        ELECTRON_CACHE: /root/.cache/electron
+        ELECTRON_BUILDER_CACHE: /root/.cache/electron-builder
+        ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+        ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+      stages:
+        - name: install system deps
+          script: apt-get update && apt-get install -y --no-install-recommends libfuse2
+
+        - name: install dependencies
+          script: npm ci
+
+        - name: build desktop runtime
+          script: npm run desktop:build
+
+        - name: package linux arm64 desktop
+          script: cd desktop && npx electron-builder --linux AppImage --arm64 --publish never
+
+        - name: collect desktop artifacts
+          script: |
+            mkdir -p desktop-artifacts
+            cp desktop/dist/*arm64*.AppImage desktop-artifacts/ 2>/dev/null || true
+            cp desktop/dist/*.AppImage desktop-artifacts/
+            cp desktop/dist/*.blockmap desktop-artifacts/ 2>/dev/null || true
+            cp desktop/dist/latest-linux-arm64.yml desktop-artifacts/ 2>/dev/null || true
+            ls -lh desktop-artifacts
+
+        - name: upload desktop artifacts
+          image: cnbcool/attachments:latest
+          settings:
+            attachments:
+              - desktop-artifacts/*
+
     - name: desktop windows x64
       allowFailure: true
       runner:
@@ -168,8 +212,49 @@ main:
             attachments:
               - desktop-artifacts/*
 
+    - name: desktop macos arm64
+      allowFailure: true
+      runner:
+        tags: cnb:arch:arm64
+        cpus: 8
+        os: macos
+      docker:
+        image: node:22-bookworm
+        volumes:
+          - /root/.npm:copy-on-write
+          - /root/.cache/electron:copy-on-write
+          - /root/.cache/electron-builder:copy-on-write
+      env:
+        ELECTRON_CACHE: /root/.cache/electron
+        ELECTRON_BUILDER_CACHE: /root/.cache/electron-builder
+        ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+        ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+      stages:
+        - name: install dependencies
+          script: npm ci
+
+        - name: build desktop runtime
+          script: npm run desktop:build
+
+        - name: package macos arm64 desktop
+          script: cd desktop && npx electron-builder --mac dmg --arm64 --publish never
+
+        - name: collect desktop artifacts
+          script: |
+            mkdir -p desktop-artifacts
+            cp desktop/dist/*.dmg desktop-artifacts/
+            cp desktop/dist/*.blockmap desktop-artifacts/ 2>/dev/null || true
+            cp desktop/dist/latest-mac-arm64.yml desktop-artifacts/ 2>/dev/null || true
+            ls -lh desktop-artifacts
+
+        - name: upload desktop artifacts
+          image: cnbcool/attachments:latest
+          settings:
+            attachments:
+              - desktop-artifacts/*
+
   # Tag 推送：构建桌面端 + 创建 CNB Release 并上传制品
-  push.tag:
+  tag_push:
     - name: desktop linux x64
       runner:
         tags: cnb:arch:amd64
@@ -206,8 +291,66 @@ main:
             cp desktop/dist/latest-linux.yml desktop-artifacts/ 2>/dev/null || true
             ls -lh desktop-artifacts
 
-        - name: publish to release
-          script: bash scripts/create-release.sh
+        - name: upload to release
+          image: cnbcool/attachments:latest
+          settings:
+            attachments:
+              - desktop-artifacts/*
+
+        - name: publish release
+          type: git:release
+          options:
+            title: ${CNB_TAG}
+            description: |
+              Desktop builds for ${CNB_TAG}
+
+              ### Linux x64
+              - AppImage: `MCP Tools Debugger-${CNB_TAG#v}-x86_64.AppImage`
+
+              See attachments for all download links.
+
+    - name: desktop linux arm64
+      runner:
+        tags: cnb:arch:arm64
+        cpus: 8
+      docker:
+        image: node:22-bookworm
+        volumes:
+          - /root/.npm:copy-on-write
+          - /root/.cache/electron:copy-on-write
+          - /root/.cache/electron-builder:copy-on-write
+      env:
+        ELECTRON_CACHE: /root/.cache/electron
+        ELECTRON_BUILDER_CACHE: /root/.cache/electron-builder
+        ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+        ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+      stages:
+        - name: install system deps
+          script: apt-get update && apt-get install -y --no-install-recommends libfuse2
+
+        - name: install dependencies
+          script: npm ci
+
+        - name: build desktop runtime
+          script: npm run desktop:build
+
+        - name: package linux arm64 desktop
+          script: cd desktop && npx electron-builder --linux AppImage --arm64 --publish never
+
+        - name: collect desktop artifacts
+          script: |
+            mkdir -p desktop-artifacts
+            cp desktop/dist/*arm64*.AppImage desktop-artifacts/ 2>/dev/null || true
+            cp desktop/dist/*.AppImage desktop-artifacts/
+            cp desktop/dist/*.blockmap desktop-artifacts/ 2>/dev/null || true
+            cp desktop/dist/latest-linux-arm64.yml desktop-artifacts/ 2>/dev/null || true
+            ls -lh desktop-artifacts
+
+        - name: upload to release
+          image: cnbcool/attachments:latest
+          settings:
+            attachments:
+              - desktop-artifacts/*
 
     - name: desktop windows x64
       runner:
@@ -247,8 +390,11 @@ main:
             cp desktop/dist/latest.yml desktop-artifacts/ 2>/dev/null || true
             ls -lh desktop-artifacts
 
-        - name: publish to release
-          script: bash scripts/create-release.sh
+        - name: upload to release
+          image: cnbcool/attachments:latest
+          settings:
+            attachments:
+              - desktop-artifacts/*
 
     - name: desktop macos x64
       runner:
@@ -284,5 +430,48 @@ main:
             cp desktop/dist/latest-mac.yml desktop-artifacts/ 2>/dev/null || true
             ls -lh desktop-artifacts
 
-        - name: publish to release
-          script: bash scripts/create-release.sh
+        - name: upload to release
+          image: cnbcool/attachments:latest
+          settings:
+            attachments:
+              - desktop-artifacts/*
+
+    - name: desktop macos arm64
+      runner:
+        tags: cnb:arch:arm64
+        cpus: 8
+        os: macos
+      docker:
+        image: node:22-bookworm
+        volumes:
+          - /root/.npm:copy-on-write
+          - /root/.cache/electron:copy-on-write
+          - /root/.cache/electron-builder:copy-on-write
+      env:
+        ELECTRON_CACHE: /root/.cache/electron
+        ELECTRON_BUILDER_CACHE: /root/.cache/electron-builder
+        ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+        ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+      stages:
+        - name: install dependencies
+          script: npm ci
+
+        - name: build desktop runtime
+          script: npm run desktop:build
+
+        - name: package macos arm64 desktop
+          script: cd desktop && npx electron-builder --mac dmg --arm64 --publish never
+
+        - name: collect desktop artifacts
+          script: |
+            mkdir -p desktop-artifacts
+            cp desktop/dist/*.dmg desktop-artifacts/
+            cp desktop/dist/*.blockmap desktop-artifacts/ 2>/dev/null || true
+            cp desktop/dist/latest-mac-arm64.yml desktop-artifacts/ 2>/dev/null || true
+            ls -lh desktop-artifacts
+
+        - name: upload to release
+          image: cnbcool/attachments:latest
+          settings:
+            attachments:
+              - desktop-artifacts/*
