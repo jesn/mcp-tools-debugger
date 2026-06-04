@@ -343,6 +343,7 @@ main:
               - desktop-artifacts/*
 
   # Tag 推送：构建桌面端 + 创建 CNB Release 并上传制品
+  # 策略：linux x64 创建 Release，其他 job 成功后通过 CNB API 追加制品
   tag_push:
     - name: desktop linux x64
       runner:
@@ -380,13 +381,7 @@ main:
             cp desktop/dist/latest-linux.yml desktop-artifacts/ 2>/dev/null || true
             ls -lh desktop-artifacts
 
-        - name: upload to release
-          image: cnbcool/attachments:latest
-          settings:
-            attachments:
-              - desktop-artifacts/*
-
-        - name: publish release
+        - name: create release
           type: git:release
           options:
             title: ${CNB_TAG}
@@ -396,7 +391,41 @@ main:
               ### Linux x64
               - AppImage: `MCP Tools Debugger-${CNB_TAG#v}-x86_64.AppImage`
 
-              See attachments for all download links.
+              ### Linux arm64
+              - ⏳ Building...
+
+              ### Windows x64
+              - ⏳ Building...
+
+              ### Windows arm64
+              - ⏳ Building...
+
+              ### macOS x64
+              - ⏳ Building...
+
+              ### macOS arm64
+              - ⏳ Building...
+
+        - name: upload release asset via api
+          script: |
+            RELEASE_ID=$(curl -sS \
+              -H "Accept: application/vnd.cnb.api+json" \
+              -H "Authorization: Bearer ${CNB_TOKEN}" \
+              "${CNB_API_ENDPOINT}/rich/public/mcp-tools-debugger/-/releases/tags/${CNB_TAG}" | sed 's/.*"id":"\([^"]*\)".*/\1/')
+            for f in desktop-artifacts/*.AppImage; do
+              [ -f "$f" ] || continue
+              fname=$(basename "$f")
+              fsize=$(stat -c%s "$f")
+              upload_info=$(curl -sS -X POST \
+                -H "Accept: application/vnd.cnb.api+json" \
+                -H "Authorization: Bearer ${CNB_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "{\"asset_name\":\"${fname}\",\"size\":${fsize}}" \
+                "${CNB_API_ENDPOINT}/rich/public/mcp-tools-debugger/-/releases/${RELEASE_ID}/asset-upload-url")
+              upload_url=$(echo "$upload_info" | sed 's/.*"upload_url":"\([^"]*\)".*/\1/')
+              curl -sS -X PUT -T "$f" "$upload_url"
+              echo "Uploaded: $fname"
+            done
 
     - name: desktop linux arm64
       runner:
@@ -435,11 +464,26 @@ main:
             cp desktop/dist/latest-linux-arm64.yml desktop-artifacts/ 2>/dev/null || true
             ls -lh desktop-artifacts
 
-        - name: upload to release
-          image: cnbcool/attachments:latest
-          settings:
-            attachments:
-              - desktop-artifacts/*
+        - name: upload release asset via api
+          script: |
+            RELEASE_ID=$(curl -sS \
+              -H "Accept: application/vnd.cnb.api+json" \
+              -H "Authorization: Bearer ${CNB_TOKEN}" \
+              "${CNB_API_ENDPOINT}/rich/public/mcp-tools-debugger/-/releases/tags/${CNB_TAG}" | sed 's/.*"id":"\([^"]*\)".*/\1/')
+            for f in desktop-artifacts/*arm64*.AppImage desktop-artifacts/latest-linux-arm64.yml; do
+              [ -f "$f" ] || continue
+              fname=$(basename "$f")
+              fsize=$(stat -c%s "$f")
+              upload_info=$(curl -sS -X POST \
+                -H "Accept: application/vnd.cnb.api+json" \
+                -H "Authorization: Bearer ${CNB_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "{\"asset_name\":\"${fname}\",\"size\":${fsize}}" \
+                "${CNB_API_ENDPOINT}/rich/public/mcp-tools-debugger/-/releases/${RELEASE_ID}/asset-upload-url")
+              upload_url=$(echo "$upload_info" | sed 's/.*"upload_url":"\([^"]*\)".*/\1/')
+              curl -sS -X PUT -T "$f" "$upload_url"
+              echo "Uploaded: $fname"
+            done
 
     - name: desktop windows x64
       runner:
@@ -479,11 +523,26 @@ main:
             cp desktop/dist/latest.yml desktop-artifacts/ 2>/dev/null || true
             ls -lh desktop-artifacts
 
-        - name: upload to release
-          image: cnbcool/attachments:latest
-          settings:
-            attachments:
-              - desktop-artifacts/*
+        - name: upload release asset via api
+          script: |
+            RELEASE_ID=$(curl -sS \
+              -H "Accept: application/vnd.cnb.api+json" \
+              -H "Authorization: Bearer ${CNB_TOKEN}" \
+              "${CNB_API_ENDPOINT}/rich/public/mcp-tools-debugger/-/releases/tags/${CNB_TAG}" | sed 's/.*"id":"\([^"]*\)".*/\1/')
+            for f in desktop-artifacts/*.exe; do
+              [ -f "$f" ] || continue
+              fname=$(basename "$f")
+              fsize=$(stat -c%s "$f")
+              upload_info=$(curl -sS -X POST \
+                -H "Accept: application/vnd.cnb.api+json" \
+                -H "Authorization: Bearer ${CNB_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "{\"asset_name\":\"${fname}\",\"size\":${fsize}}" \
+                "${CNB_API_ENDPOINT}/rich/public/mcp-tools-debugger/-/releases/${RELEASE_ID}/asset-upload-url")
+              upload_url=$(echo "$upload_info" | sed 's/.*"upload_url":"\([^"]*\)".*/\1/')
+              curl -sS -X PUT -T "$f" "$upload_url"
+              echo "Uploaded: $fname"
+            done
 
     - name: desktop windows arm64
       runner:
@@ -523,55 +582,26 @@ main:
             cp desktop/dist/latest.yml desktop-artifacts/ 2>/dev/null || true
             ls -lh desktop-artifacts
 
-        - name: upload to release
-          image: cnbcool/attachments:latest
-          settings:
-            attachments:
-              - desktop-artifacts/*
-
-    - name: desktop windows arm64
-      runner:
-        tags: cnb:arch:arm64
-        cpus: 8
-      docker:
-        image: node:22-bookworm
-        volumes:
-          - /root/.npm:copy-on-write
-          - /root/.cache/electron:copy-on-write
-          - /root/.cache/electron-builder:copy-on-write
-      env:
-        ELECTRON_CACHE: /root/.cache/electron
-        ELECTRON_BUILDER_CACHE: /root/.cache/electron-builder
-        ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
-      stages:
-        - name: install system deps
+        - name: upload release asset via api
           script: |
-            dpkg --add-architecture arm64
-            apt-get update
-            apt-get install -y --no-install-recommends wine wine32 wine64
-
-        - name: install dependencies
-          script: npm ci
-
-        - name: build desktop runtime
-          script: npm run desktop:build
-
-        - name: package windows arm64 desktop
-          script: cd desktop && npx electron-builder --win nsis --arm64 --publish never
-
-        - name: collect desktop artifacts
-          script: |
-            mkdir -p desktop-artifacts
-            cp desktop/dist/*.exe desktop-artifacts/
-            cp desktop/dist/*.blockmap desktop-artifacts/ 2>/dev/null || true
-            cp desktop/dist/latest.yml desktop-artifacts/ 2>/dev/null || true
-            ls -lh desktop-artifacts
-
-        - name: upload to release
-          image: cnbcool/attachments:latest
-          settings:
-            attachments:
-              - desktop-artifacts/*
+            RELEASE_ID=$(curl -sS \
+              -H "Accept: application/vnd.cnb.api+json" \
+              -H "Authorization: Bearer ${CNB_TOKEN}" \
+              "${CNB_API_ENDPOINT}/rich/public/mcp-tools-debugger/-/releases/tags/${CNB_TAG}" | sed 's/.*"id":"\([^"]*\)".*/\1/')
+            for f in desktop-artifacts/*.exe; do
+              [ -f "$f" ] || continue
+              fname=$(basename "$f")
+              fsize=$(stat -c%s "$f")
+              upload_info=$(curl -sS -X POST \
+                -H "Accept: application/vnd.cnb.api+json" \
+                -H "Authorization: Bearer ${CNB_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "{\"asset_name\":\"${fname}\",\"size\":${fsize}}" \
+                "${CNB_API_ENDPOINT}/rich/public/mcp-tools-debugger/-/releases/${RELEASE_ID}/asset-upload-url")
+              upload_url=$(echo "$upload_info" | sed 's/.*"upload_url":"\([^"]*\)".*/\1/')
+              curl -sS -X PUT -T "$f" "$upload_url"
+              echo "Uploaded: $fname"
+            done
 
     - name: desktop macos x64
       runner:
@@ -607,11 +637,26 @@ main:
             cp desktop/dist/latest-mac.yml desktop-artifacts/ 2>/dev/null || true
             ls -lh desktop-artifacts
 
-        - name: upload to release
-          image: cnbcool/attachments:latest
-          settings:
-            attachments:
-              - desktop-artifacts/*
+        - name: upload release asset via api
+          script: |
+            RELEASE_ID=$(curl -sS \
+              -H "Accept: application/vnd.cnb.api+json" \
+              -H "Authorization: Bearer ${CNB_TOKEN}" \
+              "${CNB_API_ENDPOINT}/rich/public/mcp-tools-debugger/-/releases/tags/${CNB_TAG}" | sed 's/.*"id":"\([^"]*\)".*/\1/')
+            for f in desktop-artifacts/*.dmg; do
+              [ -f "$f" ] || continue
+              fname=$(basename "$f")
+              fsize=$(stat -c%s "$f")
+              upload_info=$(curl -sS -X POST \
+                -H "Accept: application/vnd.cnb.api+json" \
+                -H "Authorization: Bearer ${CNB_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "{\"asset_name\":\"${fname}\",\"size\":${fsize}}" \
+                "${CNB_API_ENDPOINT}/rich/public/mcp-tools-debugger/-/releases/${RELEASE_ID}/asset-upload-url")
+              upload_url=$(echo "$upload_info" | sed 's/.*"upload_url":"\([^"]*\)".*/\1/')
+              curl -sS -X PUT -T "$f" "$upload_url"
+              echo "Uploaded: $fname"
+            done
 
     - name: desktop macos arm64
       runner:
@@ -647,8 +692,23 @@ main:
             cp desktop/dist/latest-mac-arm64.yml desktop-artifacts/ 2>/dev/null || true
             ls -lh desktop-artifacts
 
-        - name: upload to release
-          image: cnbcool/attachments:latest
-          settings:
-            attachments:
-              - desktop-artifacts/*
+        - name: upload release asset via api
+          script: |
+            RELEASE_ID=$(curl -sS \
+              -H "Accept: application/vnd.cnb.api+json" \
+              -H "Authorization: Bearer ${CNB_TOKEN}" \
+              "${CNB_API_ENDPOINT}/rich/public/mcp-tools-debugger/-/releases/tags/${CNB_TAG}" | sed 's/.*"id":"\([^"]*\)".*/\1/')
+            for f in desktop-artifacts/*.dmg; do
+              [ -f "$f" ] || continue
+              fname=$(basename "$f")
+              fsize=$(stat -c%s "$f")
+              upload_info=$(curl -sS -X POST \
+                -H "Accept: application/vnd.cnb.api+json" \
+                -H "Authorization: Bearer ${CNB_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "{\"asset_name\":\"${fname}\",\"size\":${fsize}}" \
+                "${CNB_API_ENDPOINT}/rich/public/mcp-tools-debugger/-/releases/${RELEASE_ID}/asset-upload-url")
+              upload_url=$(echo "$upload_info" | sed 's/.*"upload_url":"\([^"]*\)".*/\1/')
+              curl -sS -X PUT -T "$f" "$upload_url"
+              echo "Uploaded: $fname"
+            done
