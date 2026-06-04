@@ -91,6 +91,93 @@ docker run -d \
   docker.cnb.cool/rich/public/mcp-tools-debugger:latest
 ```
 
+## 本地 npm / CLI 使用
+
+本地 Web/CLI 入口继续使用现有链路：
+
+```bash
+npm install
+npm run build
+npm start
+```
+
+也可以通过包命令启动：
+
+```bash
+npx mcp-tools-debugger
+```
+
+这一路径仍由 `client/bin/start.js` 编排 Web UI 和 MCP Proxy，默认使用 Web 端口 `6274` 与 proxy 端口 `6277`。Dockerfile 也继续使用同一入口，不经过桌面端代码。
+
+## Desktop App
+
+桌面端位于独立 workspace `desktop/`，只消费已构建产物：
+
+- `client/dist`。
+- `server/build`。
+- `server/static`。
+- 后端运行时依赖。
+
+桌面端不把 Electron 逻辑放进 `client/src` 或 `server/src`，也不复用 Web/CLI 的 `client/bin/start.js`。Electron 主进程只负责托管本地 UI、启动本地 MCP Proxy、注入本轮运行所需的动态端口和 token。
+
+开发启动：
+
+```bash
+npm run desktop:dev
+```
+
+准备桌面端 staged runtime：
+
+```bash
+npm run desktop:prepare-runtime
+```
+
+构建桌面端产物和 runtime：
+
+```bash
+npm run desktop:build
+```
+
+生成未安装目录包：
+
+```bash
+npm run desktop:pack
+```
+
+生成平台安装包：
+
+```bash
+npm run desktop:dist
+```
+
+桌面端默认使用动态本地端口，不固定占用 `6274/6277`。UI 端口会优先复用上一次桌面端端口，减少 Electron profile 中 `localStorage` origin 变化导致的 Profile、历史和参数模板切换问题。MCP Proxy 端口和 session token 每次启动动态生成，并通过页面 query 注入。
+
+桌面端数据仍使用浏览器本地存储语义，保存在 Electron profile 中。stdio MCP Server 仍依赖用户本机命令、`PATH` 和环境变量；macOS GUI App 与终端启动时的环境变量可能不同。
+
+## 验证矩阵
+
+Web / Docker / CLI 不回归：
+
+- `npm run build` 成功。
+- `npm start` 仍能启动 Web UI 和 MCP Proxy。
+- Dockerfile 运行链路仍指向 `node client/bin/start.js`。
+- `client/bin/start.js` 与 `client/bin/client.js` 不承载桌面端逻辑。
+
+桌面端基础能力：
+
+- `npm run desktop:build` 成功，并生成 `desktop/runtime`。
+- `npm run desktop:dev` 能打开窗口并加载 `client/dist`。
+- MCP Proxy 在动态端口启动，`/health` 返回 `status: "ok"`。
+- 前端 query 中的 `MCP_PROXY_FULL_ADDRESS`、`MCP_PROXY_PORT` 和 `MCP_PROXY_AUTH_TOKEN` 指向同一轮桌面运行。
+- Origin 校验只允许当前桌面 UI origin 及必要 loopback 等价 origin。
+
+桌面端生命周期：
+
+- 关闭窗口或退出 App 后 proxy 子进程退出。
+- UI 端口被占用时能自动换空闲端口。
+- proxy 启动失败或意外退出时能看到可读错误和最近 proxy 日志。
+- OAuth 授权页、callback 和普通外链分别走受控导航路径。
+
 ## 二开新增功能
 
 ### 左侧栏折叠

@@ -37,3 +37,40 @@ main:
               --cache-to type=registry,ref=$IMAGE_REPO:buildcache,mode=max \
               --cache-from type=registry,ref=$IMAGE_REPO:buildcache \
               --push .
+
+    - name: desktop linux x64 test
+      allowFailure: true
+      runner:
+        tags: cnb:arch:amd64
+        cpus: 8
+      docker:
+        image: node:22-bookworm
+        volumes:
+          - /root/.npm:copy-on-write
+          - /root/.cache/electron:copy-on-write
+          - /root/.cache/electron-builder:copy-on-write
+      env:
+        ELECTRON_CACHE: /root/.cache/electron
+        ELECTRON_BUILDER_CACHE: /root/.cache/electron-builder
+      stages:
+        - name: install dependencies
+          script: npm ci
+
+        - name: build desktop runtime
+          script: npm run desktop:build
+
+        - name: package linux x64 desktop
+          script: cd desktop && npx electron-builder --linux AppImage --x64 --publish never
+
+        - name: collect desktop artifacts
+          script: |
+            mkdir -p desktop-artifacts
+            cp desktop/dist/*.AppImage desktop-artifacts/
+            cp desktop/dist/*.blockmap desktop-artifacts/ 2>/dev/null || true
+            ls -lh desktop-artifacts
+
+        - name: upload desktop artifacts
+          image: cnbcool/attachments:latest
+          settings:
+            attachments:
+              - desktop-artifacts/*

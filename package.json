@@ -28,13 +28,20 @@
   ],
   "workspaces": [
     "client",
-    "server"
+    "server",
+    "desktop"
   ],
   "scripts": {
     "build": "npm run build-server && npm run build-client",
     "build-server": "cd server && npm run build",
     "build-client": "cd client && npm run build",
-    "clean": "rimraf ./node_modules ./client/node_modules ./client/dist ./server/build ./server/node_modules ./package-lock.json && npm install",
+    "build-desktop": "cd desktop && npm run build",
+    "desktop:dev": "npm run build-server && npm run build-client && cd desktop && npm run dev",
+    "desktop:prepare-runtime": "cd desktop && npm run prepare-runtime",
+    "desktop:build": "npm run build-server && npm run build-client && npm run build-desktop && npm run desktop:prepare-runtime",
+    "desktop:pack": "npm run desktop:build && cd desktop && npm run pack",
+    "desktop:dist": "npm run desktop:build && cd desktop && npm run dist",
+    "clean": "rimraf ./node_modules ./client/node_modules ./client/dist ./server/build ./server/node_modules ./desktop/node_modules ./desktop/build ./desktop/dist ./desktop/runtime ./package-lock.json && npm install",
     "dev": "node client/bin/start.js --dev",
     "start": "node client/bin/start.js",
     "start-server": "cd server && npm run start",

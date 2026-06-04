@@ -1,0 +1,65 @@
+{
+  "name": "mcp-tools-debugger-desktop",
+  "version": "0.1.0",
+  "description": "Desktop shell for MCP Tools Debugger",
+  "license": "MIT",
+  "type": "module",
+  "main": "build/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "npm run build && electron .",
+    "prepare-runtime": "node scripts/prepare-runtime.mjs",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "cool.cnb.rich.mcp-tools-debugger",
+    "productName": "MCP Tools Debugger",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "runtime/package.json",
+        "to": "runtime/package.json"
+      },
+      {
+        "from": "runtime/client/dist",
+        "to": "runtime/client/dist",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "runtime/server/build",
+        "to": "runtime/server/build",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "runtime/server/static",
+        "to": "runtime/server/static",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "runtime/node_modules",
+        "to": "runtime/node_modules",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "npmRebuild": false
+  },
+  "devDependencies": {
+    "electron": "42.3.2",
+    "electron-builder": "^26.8.1"
+  }
+}

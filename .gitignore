@@ -6,6 +6,10 @@ node_modules/
 *-workspace/
 server/build
 client/dist
+desktop/build
+desktop/dist
+desktop/runtime
+desktop/*.tsbuildinfo
 client/tsconfig.app.tsbuildinfo
 client/tsconfig.node.tsbuildinfo
 cli/build
